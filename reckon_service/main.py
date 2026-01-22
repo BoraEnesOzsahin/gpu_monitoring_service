@@ -14,7 +14,6 @@ Reference: Protocol Doc Section 2 and 3
 DEFAULT_HEARTBEAT_INTERVAL = 60  # Seconds
 RETRY_DELAY = 60                 # Wait time when server sends 202 Accepted
 
-
 def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
@@ -52,10 +51,10 @@ def register_node():
     """
     print("\n[STATE] INITIALIZING...")
     
-    hardware_id = config_manager.get_hardware_id()
+hardware_id = config_manager.get_hardware_id()
     inventory = gpu_driver.get_gpu_inventory()
     
-    payload = {
+payload = {
         "hardware_id": hardware_id,
         "model": "RECKON_RIG_GEN1",
         "fw_version": "1.0.0",
@@ -78,8 +77,7 @@ def register_node():
                 data = response.json()
                 print("SUCCESS: Node Approved!")
                 config_manager.save_secrets(data["node_id"], data["api_token"])
-                return data # Return config to start running
-            
+                return data # Return config to start running            
             # CASE 2: 202 Accepted -> Pending Approval
             elif response.status_code == 202:
                 print(f"PENDING: Waiting for admin approval. Retrying in {RETRY_DELAY}s...")
