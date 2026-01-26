@@ -177,7 +177,12 @@ def main():
     print("--- RECKON GPU CLIENT STARTED ---")
     
     # Initialize watchdog
-    watchdog_timeout = int(os.getenv("WATCHDOG_TIMEOUT", "120"))
+    try:
+        watchdog_timeout = int(os.getenv("WATCHDOG_TIMEOUT", "120"))
+    except ValueError:
+        print("Warning: Invalid WATCHDOG_TIMEOUT value. Using default of 120 seconds.")
+        watchdog_timeout = 120
+    
     watchdog.init_watchdog(watchdog_timeout)
     
     while True:

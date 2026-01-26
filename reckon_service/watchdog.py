@@ -46,7 +46,7 @@ class Watchdog:
     def _restart_service(self):
         """Restart the Python process."""
         print("[WATCHDOG] Initiating restart...")
-        os.execv(sys.executable, ['python'] + sys.argv)
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
 # Global watchdog instance
