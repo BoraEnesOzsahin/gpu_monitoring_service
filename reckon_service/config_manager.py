@@ -13,7 +13,6 @@ Reference: Protocol Doc Section 4.1 (Initialization)
 load_dotenv()
 
 # --- CONFIGURATION ---
-# CHANGE THIS to your actual EMS Server URL
 EMS_API_URL = os.getenv("EMS_API_URL", "http://127.0.0.1:8000")
 
 # File to store the API token and Node ID securely
