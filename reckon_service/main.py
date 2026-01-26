@@ -1,8 +1,10 @@
 import time
 import requests
 import json
+import os
 import gpu_driver
 import config_manager
+import watchdog
 
 """
 RECKON Client - Main Service
@@ -51,10 +53,10 @@ def register_node():
     """
     print("\n[STATE] INITIALIZING...")
     
-hardware_id = config_manager.get_hardware_id()
+    hardware_id = config_manager.get_hardware_id()
     inventory = gpu_driver.get_gpu_inventory()
     
-payload = {
+    payload = {
         "hardware_id": hardware_id,
         "model": "RECKON_RIG_GEN1",
         "fw_version": "1.0.0",
@@ -69,6 +71,9 @@ payload = {
     
     while True:
         try:
+            # Feed watchdog during registration to prevent timeout
+            watchdog.feed_watchdog()
+            
             print(f"Sending registration request to {url}...")
             response = requests.post(url, json=payload, timeout=10)
             
@@ -138,6 +143,9 @@ def start_heartbeat_loop(initial_config):
             if response.status_code == 200:
                 data = response.json()
                 
+                # Feed watchdog after successful heartbeat
+                watchdog.feed_watchdog()
+                
                 # Check for Commands [cite: 199]
                 if data.get("command") == "adjust_power":
                     target_w = data.get("setpoint_power_w", 1500)
@@ -167,6 +175,10 @@ def main():
     Main State Machine Entry Point
     """
     print("--- RECKON GPU CLIENT STARTED ---")
+    
+    # Initialize watchdog
+    watchdog_timeout = int(os.getenv("WATCHDOG_TIMEOUT", "120"))
+    watchdog.init_watchdog(watchdog_timeout)
     
     while True:
         # Check if we are already registered
