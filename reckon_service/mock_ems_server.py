@@ -1,11 +1,20 @@
 from flask import Flask, request, jsonify
 import uuid
 import datetime
+import os
+from dotenv import load_dotenv
 
 """
 RECKON Project - Mock EMS Server (For Testing)
 Purpose: Simulates an EMS server to test the Client software.
 """
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Server configuration
+SERVER_HOST = os.getenv("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.getenv("SERVER_PORT", "8000"))
 
 app = Flask(__name__)
 
@@ -91,5 +100,5 @@ def receive_heartbeat():
 
 if __name__ == '__main__':
     # Start server on port 8000
-    print("--- MOCK EMS SERVER STARTING (Port: 8000) ---")
-    app.run(host='0.0.0.0', port=8000)
+    print(f"--- MOCK EMS SERVER STARTING (Host: {SERVER_HOST}, Port: {SERVER_PORT}) ---")
+    app.run(host=SERVER_HOST, port=SERVER_PORT)

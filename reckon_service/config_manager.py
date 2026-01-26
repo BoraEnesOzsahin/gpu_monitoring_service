@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from dotenv import load_dotenv
 
 """
 RECKON Client - Configuration & State Manager
@@ -8,12 +9,19 @@ Purpose: Handles persistent storage (tokens), hardware ID generation, and global
 Reference: Protocol Doc Section 4.1 (Initialization)
 """
 
+# Load environment variables from .env file
+load_dotenv()
+
 # --- CONFIGURATION ---
 # CHANGE THIS to your actual EMS Server URL
-EMS_API_URL = "http://127.0.0.1:8000" 
+EMS_API_URL = os.getenv("EMS_API_URL", "http://127.0.0.1:8000")
 
 # File to store the API token and Node ID securely
-SECRETS_FILE = "secrets.json"
+SECRETS_FILE = os.getenv("SECRETS_FILE", "secrets.json")
+
+# Client configuration
+DEFAULT_HEARTBEAT_INTERVAL = int(os.getenv("DEFAULT_HEARTBEAT_INTERVAL", "60"))
+RETRY_DELAY = int(os.getenv("RETRY_DELAY", "60"))
 
 def get_hardware_id():
     """

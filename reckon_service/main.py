@@ -11,8 +11,8 @@ Reference: Protocol Doc Section 2 and 3
 """
 
 # --- CONSTANTS ---
-DEFAULT_HEARTBEAT_INTERVAL = 60  # Seconds
-RETRY_DELAY = 60                 # Wait time when server sends 202 Accepted
+DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
+RETRY_DELAY = config_manager.RETRY_DELAY
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
