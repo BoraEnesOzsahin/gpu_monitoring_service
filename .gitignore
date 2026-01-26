@@ -1,0 +1,13 @@
+# Environment variables
+.env
+
+# Keep the example file
+!.env.example
+
+# Secrets
+secrets.json
+
+# Python
+__pycache__/
+*.pyc
+venv/
