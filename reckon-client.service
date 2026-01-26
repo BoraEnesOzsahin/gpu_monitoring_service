@@ -1,0 +1,23 @@
+[Unit]
+Description=RECKON GPU Monitoring Client
+After=network.target
+
+[Service]
+Type=simple
+User=radmin
+WorkingDirectory=/home/radmin/scripts/gpu_monitoring_service/reckon_service
+EnvironmentFile=/home/radmin/scripts/gpu_monitoring_service/.env
+ExecStart=/home/radmin/scripts/gpu_monitoring_service/venv/bin/python main.py
+
+# Watchdog and restart settings
+Restart=always
+RestartSec=10
+WatchdogSec=120
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=reckon-client
+
+[Install]
+WantedBy=multi-user.target

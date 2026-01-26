@@ -11,3 +11,6 @@ secrets.json
 __pycache__/
 *.pyc
 venv/
+
+# Test files
+test_watchdog.py
