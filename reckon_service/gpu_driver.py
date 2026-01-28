@@ -83,38 +83,41 @@ def get_gpu_telemetry():
     """
     Canlı verileri okur (Sıcaklık, Güç, Yük).
     """
+    def safe_float(val):
+        try:
+            if val in (None, "N/A", ""):
+                return 0.0
+            return float(val)
+        except Exception:
+            return 0.0
+
     cmd = "rocm-smi --showtemp --showuse --showpower --json"
     json_output = run_command(cmd)
-    
     telemetry = []
 
     if json_output:
         try:
             data = json.loads(json_output)
-            
             for key in sorted(data.keys()):
                 gpu_data = data[key]
                 gpu_index = key.replace('card', '')
-                
-                temp_c = float(gpu_data.get("Temperature (Sensor edge) (C)", 0.0))
-                power_w = float(gpu_data.get("Average Graphics Package Power (W)", 0.0))
-                load_pct = float(gpu_data.get("GPU use (%)", 0.0))
+                temp_c = safe_float(gpu_data.get("Temperature (Sensor edge) (C)"))
+                power_w = safe_float(gpu_data.get("Average Graphics Package Power (W)"))
+                load_pct = safe_float(gpu_data.get("GPU use (%)"))
 
                 telemetry_item = {
                     "gpu_id": f"gpu_{gpu_index}",
                     "load_pct": load_pct,
                     "temp_c": temp_c,
                     "power_draw_w": power_w,
-                    "current_performance": { 
-                        "value": 0, 
+                    "current_performance": {
+                        "value": 0,
                         "unit": "MH/s"
                     }
                 }
                 telemetry.append(telemetry_item)
-                
         except (json.JSONDecodeError, ValueError):
             pass
-            
     return telemetry
 
 # --- TEST ---
