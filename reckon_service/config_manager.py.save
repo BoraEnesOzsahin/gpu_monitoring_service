@@ -1,4 +1,3 @@
-
 import json
 import os
 import uuid
@@ -62,22 +61,6 @@ def save_secrets(node_id, api_token):
         json.dump(data, f, indent=4)
     print(f"Success: Credentials saved to {SECRETS_FILE}")
 
-
-
-
-def save_pending_node_id(node_id):
-    """
-    Saves node_id received during PENDING state (no api_token yet).
-    """
-    data = {
-        "node_id": node_id,
-        "api_token": None
-    }
-
-    with open(SECRETS_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
-
-    print(f"PENDING: node_id saved to {SECRETS_FILE}")
 
 
 
