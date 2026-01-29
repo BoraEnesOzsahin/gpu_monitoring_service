@@ -112,37 +112,37 @@ def register_node():
         except requests.exceptions.RequestException as e:
             print(f"NETWORK ERROR: {e}. Retrying in 30s...")
             time.sleep(30)
-#
-#
-#
-#def approve_node(node_id):
-#    """
-#    Approves a pending node registration using the EMS API.
-#    Sends an approval request to the server.
-#    """
-#    import requests
-#
-#    url = f"{config_manager.EMS_API_URL}/api/v1/nodes/{node_id}/approve"
-#
-#    headers = {
-#        "Authorization": f"Bearer {api_token}"
-#    }
-#
-#    print(f"\n[ADMIN] Approving node {node_id}...")
-#
-#    try:
-#        response = requests.post(url, timeout=10)
-#        if response.status_code == 200:
-#            print("SUCCESS: Node approved successfully!")
-#            print("Response:", response.json())
-#        elif response.status_code == 404:
-#            print("ERROR: Node not found.")
-#        else:
-#            print(f"ERROR: Server returned {response.status_code}.")
-#            print("Response:", response.text)
-#    except requests.exceptions.RequestException as e:
-#        print(f"NETWORK ERROR: {e}.")
-#
+
+
+
+def approve_node(node_id):
+    """
+    Approves a pending node registration using the EMS API.
+    Sends an approval request to the server.
+    """
+    import requests
+
+    url = f"{config_manager.EMS_API_URL}/api/v1/nodes/{node_id}/approve"
+
+    headers = {
+        "Authorization": f"Bearer {api_token}"
+    }
+
+    print(f"\n[ADMIN] Approving node {node_id}...")
+
+    try:
+        response = requests.post(url, timeout=10)
+        if response.status_code == 200:
+            print("SUCCESS: Node approved successfully!")
+            print("Response:", response.json())
+        elif response.status_code == 404:
+            print("ERROR: Node not found.")
+        else:
+            print(f"ERROR: Server returned {response.status_code}.")
+            print("Response:", response.text)
+    except requests.exceptions.RequestException as e:
+        print(f"NETWORK ERROR: {e}.")
+
 
 
 
@@ -163,8 +163,8 @@ def start_heartbeat_loop(initial_config):
     node_id = secrets["node_id"]
     token = secrets["api_token"]
     
-    # Set interval from server config or default
-    interval = initial_config.get("initial_command", {}).get("heartbeat_interval", DEFAULT_HEARTBEAT_INTERVAL)
+    # Her zaman sadece env'den al
+    interval = DEFAULT_HEARTBEAT_INTERVAL
     
     url = f"{config_manager.EMS_API_URL}/api/v1/nodes/heartbeat"
     headers = {"Authorization": f"Bearer {token}"}
@@ -174,7 +174,7 @@ def start_heartbeat_loop(initial_config):
             # 1. Collect Telemetry
             telemetry = gpu_driver.get_gpu_telemetry()
             
-            # 2. Prepare Payload [cite: 162]
+            # 2. Prepare Payload
             payload = {
                 "node_id": node_id,
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -192,19 +192,12 @@ def start_heartbeat_loop(initial_config):
             # 4. Handle Response
             if response.status_code == 200:
                 data = response.json()
-                
-                # Feed watchdog after successful heartbeat
                 watchdog.feed_watchdog()
-                
-                # Check for Commands [cite: 199]
                 if data.get("command") == "adjust_power":
                     target_w = data.get("setpoint_power_w", 1500)
                     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
                     apply_power_limit(target_w, len(telemetry))
-                
-                # Update interval if server requests
-                if "next_heartbeat" in data:
-                    interval = data["next_heartbeat"]
+                # Burada interval değiştirilmesin!
 
             elif response.status_code == 401:
                 print("UNAUTHORIZED: Token revoked. Deleting secrets and restarting.")
@@ -217,8 +210,12 @@ def start_heartbeat_loop(initial_config):
         except requests.exceptions.RequestException as e:
             print(f"Network Error: {e}")
         
-        # Wait for next beat
         time.sleep(interval)
+
+
+
+
+
 
 def main():
     """
@@ -243,7 +240,8 @@ def main():
             # If we have a token, jump straight to RUNNING
             print("Found saved credentials. Resuming operation...")
             # We create a dummy initial config since we are resuming
-            dummy_config = {"initial_command": {"heartbeat_interval": DEFAULT_HEARTBEAT_INTERVAL}}
+            dummy_config = {"initial_command": {"heartbeat_interval":DEFAULT_HEARTBEAT_INTERVAL
+}}
             start_heartbeat_loop(dummy_config)
         else:
             # If no token, go to INITIALIZING
