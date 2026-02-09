@@ -20,10 +20,9 @@ DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
 
 # Infinite loop protection
-MAX_REGISTRATION_RETRIES = 100  # Maximum attempts before giving up
-MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 50  # Maximum consecutive heartbeat failures
-MAX_STATE_MACHINE_CYCLES = 10  # Maximum outer loop cycles before exit (prevents pathological restart loops)
-STATE_MACHINE_CYCLE_DELAY = 30  # Seconds to wait between state machine cycles
+MAX_REGISTRATION_RETRIES = 100  # Maximum attempts before giving up (registration requires manual approval)
+MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 50  # Maximum consecutive heartbeat failures before reconnecting
+STATE_MACHINE_CYCLE_DELAY = 30  # Seconds to wait between heartbeat loop reconnection attempts
 
 # Graceful shutdown flag
 _shutdown_requested = False
@@ -282,12 +281,8 @@ def main():
     
     watchdog.init_watchdog(watchdog_timeout)
     
-    # Prevent infinite outer loop - limit total state machine cycles
-    cycle_count = 0
-    
-    while cycle_count < MAX_STATE_MACHINE_CYCLES and not _shutdown_requested:
-        cycle_count += 1
-        print(f"\n[STATE MACHINE] Cycle {cycle_count}/{MAX_STATE_MACHINE_CYCLES}")
+    # Main state machine loop - runs indefinitely for long-running service
+    while not _shutdown_requested:
         
         # Check if we are already registered
         secrets = config_manager.load_secrets()
@@ -310,17 +305,13 @@ def main():
                 break
         
         # If we exit the inner loops normally (not due to shutdown), 
-        # wait a bit before cycling again to avoid tight loops
+        # wait before reconnecting to avoid tight loops during failures
         if not _shutdown_requested:
-            print(f"[INFO] Waiting {STATE_MACHINE_CYCLE_DELAY} seconds before next cycle...")
+            print(f"[INFO] Reconnecting in {STATE_MACHINE_CYCLE_DELAY} seconds...")
             time.sleep(STATE_MACHINE_CYCLE_DELAY)
     
     # Exit cleanly
-    if _shutdown_requested:
-        print("\n[SHUTDOWN] Service stopped gracefully.")
-    else:
-        print(f"\n[EXIT] Maximum state machine cycles ({MAX_STATE_MACHINE_CYCLES}) reached. Service exiting.")
-    
+    print("\n[SHUTDOWN] Service stopped gracefully.")
     print("--- RECKON GPU CLIENT STOPPED ---")
 
 if __name__ == "__main__":
