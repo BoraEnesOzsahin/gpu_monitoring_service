@@ -7,6 +7,10 @@
 # Secrets
 secrets.json
 
+# Audit logs (contain sensitive power adjustment history)
+power_audit.log
+*.log
+
 # Python
 __pycache__/
 *.pyc

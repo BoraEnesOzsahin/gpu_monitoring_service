@@ -17,7 +17,11 @@ HASHRATE_LOOKUP = {
 }
 
 def run_command(command):
-    """Executes a shell command and returns the output as a string."""
+    """
+    Executes a shell command and returns the output as a string.
+    WARNING: Uses shell=True for backward compatibility with existing callers.
+    New code should use run_command_safe() instead.
+    """
     try:
         result = subprocess.run(
             command, 
@@ -25,11 +29,76 @@ def run_command(command):
             check=True, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            timeout=30
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError:
         return None
+    except subprocess.TimeoutExpired:
+        print("ERROR: Command timeout")
+        return None
+
+
+def run_command_safe(args, timeout=30):
+    """
+    Executes a command safely without shell interpretation.
+    Prevents command injection attacks.
+    
+    Args:
+        args: List of command arguments (e.g., ["rocm-smi", "-d", "0", "--setpowerlimit", "150"])
+        timeout: Command timeout in seconds
+        
+    Returns:
+        (success: bool, stdout: str, stderr: str)
+    """
+    try:
+        result = subprocess.run(
+            args,
+            shell=False,  # SECURITY: No shell interpretation
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=timeout
+        )
+        return True, result.stdout.strip(), result.stderr.strip()
+    except subprocess.CalledProcessError as e:
+        return False, e.stdout if e.stdout else "", e.stderr if e.stderr else str(e)
+    except subprocess.TimeoutExpired:
+        return False, "", "Command timeout"
+    except Exception as e:
+        return False, "", str(e)
+
+
+def set_power_limit_safe(power_watts, gpu_count):
+    """
+    Safely sets power limit on all GPUs using secure command execution.
+    
+    Args:
+        power_watts: Power limit per GPU in watts
+        gpu_count: Number of GPUs (for logging purposes)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    # Build command arguments as list (no shell interpretation)
+    cmd_args = ["rocm-smi", "--setpowerlimit", str(power_watts), "-d", "all"]
+    
+    print(f"[GPU] Executing: {' '.join(cmd_args)}")
+    
+    success, stdout, stderr = run_command_safe(cmd_args)
+    
+    if success:
+        print(f"[GPU] Power limit set successfully to {power_watts}W per GPU")
+        if stdout:
+            print(f"[GPU] Output: {stdout}")
+        return True
+    else:
+        print(f"[GPU] Failed to set power limit")
+        if stderr:
+            print(f"[GPU] Error: {stderr}")
+        return False
 
 
 
