@@ -17,6 +17,7 @@ Reference: Protocol Doc Section 2 and 3
 # --- CONSTANTS ---
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
+MAIN_LOOP_RETRY_DELAY_SECONDS = 30  # Delay between main loop iterations to prevent CPU burn
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
@@ -164,8 +165,8 @@ def start_heartbeat_loop(initial_config):
     token = secrets["api_token"]
     
     # Guard against null token
-    if not token:
-        print("CRITICAL: api_token is None. Cannot run heartbeat. Returning to init.")
+    if token is None or token == "":
+        print("CRITICAL: api_token is None or empty. Cannot run heartbeat. Returning to init.")
         config_manager.delete_secrets()
         return
     
@@ -255,8 +256,8 @@ def main():
             start_heartbeat_loop(initial_config)
         
         # Safety net: always sleep before retrying to prevent CPU burn
-        print("[MAIN] Loop iteration ended. Waiting 30s before retry...")
-        time.sleep(30)
+        print(f"[MAIN] Loop iteration ended. Waiting {MAIN_LOOP_RETRY_DELAY_SECONDS}s before retry...")
+        time.sleep(MAIN_LOOP_RETRY_DELAY_SECONDS)
 
 if __name__ == "__main__":
     main()
