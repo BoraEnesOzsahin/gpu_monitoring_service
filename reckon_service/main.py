@@ -22,6 +22,8 @@ RETRY_DELAY = config_manager.RETRY_DELAY
 # Infinite loop protection
 MAX_REGISTRATION_RETRIES = 100  # Maximum attempts before giving up
 MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 50  # Maximum consecutive heartbeat failures
+MAX_STATE_MACHINE_CYCLES = 10  # Maximum outer loop cycles before exit (prevents pathological restart loops)
+STATE_MACHINE_CYCLE_DELAY = 30  # Seconds to wait between state machine cycles
 
 # Graceful shutdown flag
 _shutdown_requested = False
@@ -281,7 +283,6 @@ def main():
     watchdog.init_watchdog(watchdog_timeout)
     
     # Prevent infinite outer loop - limit total state machine cycles
-    MAX_STATE_MACHINE_CYCLES = 10
     cycle_count = 0
     
     while cycle_count < MAX_STATE_MACHINE_CYCLES and not _shutdown_requested:
@@ -311,8 +312,8 @@ def main():
         # If we exit the inner loops normally (not due to shutdown), 
         # wait a bit before cycling again to avoid tight loops
         if not _shutdown_requested:
-            print("[INFO] Waiting 30 seconds before next cycle...")
-            time.sleep(30)
+            print(f"[INFO] Waiting {STATE_MACHINE_CYCLE_DELAY} seconds before next cycle...")
+            time.sleep(STATE_MACHINE_CYCLE_DELAY)
     
     # Exit cleanly
     if _shutdown_requested:
