@@ -43,7 +43,13 @@ def load_secrets():
     if os.path.exists(SECRETS_FILE):
         try:
             with open(SECRETS_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Only return secrets if we have a VALID (non-null) token
+                if data.get("api_token") is not None and data.get("node_id") is not None:
+                    return data
+                else:
+                    print("Warning: secrets.json exists but api_token is null (pending state).")
+                    return None
         except json.JSONDecodeError:
             print("Warning: secrets file is corrupted.")
             return None

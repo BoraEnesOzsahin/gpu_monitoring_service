@@ -8,6 +8,9 @@ RECKON Client - Internal Watchdog
 Purpose: Monitors the main service and restarts if unresponsive.
 """
 
+# Constants
+RESTART_COOLDOWN_SECONDS = 10  # Cooldown before restarting to prevent restart storms
+
 class Watchdog:
     def __init__(self, timeout_seconds=120):
         self.timeout = timeout_seconds
@@ -45,7 +48,8 @@ class Watchdog:
     
     def _restart_service(self):
         """Restart the Python process."""
-        print("[WATCHDOG] Initiating restart...")
+        print(f"[WATCHDOG] Initiating restart in {RESTART_COOLDOWN_SECONDS} seconds...")
+        time.sleep(RESTART_COOLDOWN_SECONDS)  # Cooldown before restart
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
