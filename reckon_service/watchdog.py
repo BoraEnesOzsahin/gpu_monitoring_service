@@ -44,8 +44,9 @@ class Watchdog:
                 self._restart_service()
     
     def _restart_service(self):
-        """Restart the Python process."""
-        print("[WATCHDOG] Initiating restart...")
+        """Restart the Python process with cooldown."""
+        print("[WATCHDOG] Initiating restart in 10 seconds...")
+        time.sleep(10)  # Cooldown to prevent restart storms
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 

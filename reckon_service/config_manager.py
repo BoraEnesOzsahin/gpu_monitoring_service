@@ -38,12 +38,18 @@ def get_hardware_id():
 def load_secrets():
     """
     Tries to load the saved API Token and Node ID from disk.
-    Returns: dict or None (if not found)
+    Returns: dict or None (if not found, corrupted, or incomplete)
     """
     if os.path.exists(SECRETS_FILE):
         try:
             with open(SECRETS_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                # Only return secrets if we have a VALID (non-null) token and node_id
+                if data.get("api_token") is not None and data.get("node_id") is not None:
+                    return data
+                else:
+                    print("Warning: secrets.json exists but credentials are incomplete (pending state). Will re-initialize.")
+                    return None
         except json.JSONDecodeError:
             print("Warning: secrets file is corrupted.")
             return None
