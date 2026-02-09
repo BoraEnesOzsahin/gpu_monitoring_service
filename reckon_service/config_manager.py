@@ -54,7 +54,7 @@ def load_secrets():
                 return None
             
             api_token = data.get("api_token")
-            if not api_token or api_token == "":
+            if not api_token:
                 print("Warning: api_token is null or empty. Rejecting secrets.")
                 return None
             

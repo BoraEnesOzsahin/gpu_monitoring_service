@@ -15,6 +15,8 @@ class Watchdog:
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
+        # SAFETY: Maximum allowed timeout multiplier for validation
+        self.MAX_TIMEOUT_MULTIPLIER = 10
     
     def start(self):
         """Start the watchdog monitoring thread."""
@@ -43,7 +45,7 @@ class Watchdog:
                     elapsed = time.time() - self.last_heartbeat
                 
                 # SAFETY: Validate elapsed is reasonable (positive and not too large)
-                if elapsed < 0 or elapsed > (self.timeout * 10):
+                if elapsed < 0 or elapsed > (self.timeout * self.MAX_TIMEOUT_MULTIPLIER):
                     print(f"[WATCHDOG] WARNING: Suspicious elapsed time: {elapsed}s. Resetting.")
                     with self._lock:
                         self.last_heartbeat = time.time()

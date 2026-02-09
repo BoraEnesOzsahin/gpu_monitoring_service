@@ -168,7 +168,7 @@ def start_heartbeat_loop(initial_config):
     token = secrets["api_token"]
     
     # SAFETY: Guard against null/empty token to prevent infinite loop
-    if not token or token == "":
+    if not token:
         print("CRITICAL: api_token is null or empty. Deleting secrets.")
         config_manager.delete_secrets()
         return # Go back to main loop
