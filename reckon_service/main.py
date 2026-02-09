@@ -7,6 +7,7 @@ import os
 import gpu_driver
 import config_manager
 import watchdog
+import power_control
 
 """
 RECKON Client - Main Service
@@ -20,33 +21,25 @@ RETRY_DELAY = config_manager.RETRY_DELAY
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
+    DEPRECATED: Use power_control.apply_power_limit_secure() instead.
+    This function is kept for backward compatibility but delegates to the secure implementation.
+    
     Distributes power but clamps it to hardware limits.
-    SAFETY: Never exceeds 150W per card.
+    SAFETY: Never exceeds 210W per card, minimum 100W per card.
     """
-    if gpu_count == 0:
-        return
-
-    # 1. Hardware Limit (TDP of Cards (right now RX5600) it could be dynamic depending on the card.)
-    MAX_PER_GPU_W = 210 
-    MIN_PER_GPU_W = 100  # Minimum required
-
-    # 2. Calculate the Watt per gpu
-    requested_per_card = int(target_total_watts / gpu_count)
+    print(f"[DEPRECATED] apply_power_limit called, delegating to secure implementation")
     
-    # 3. (Clamping Logic)
-    # If desired > 150 ise, 150 yap.
-    # If desired < 50 ise, 50 yap.
-    safe_limit = min(requested_per_card, MAX_PER_GPU_W)
-    safe_limit = max(safe_limit, MIN_PER_GPU_W)
+    # Delegate to the secure power control module
+    success, message = power_control.apply_power_limit_secure(
+        target_total_watts, 
+        gpu_count, 
+        gpu_driver
+    )
     
-    print(f"--- POWER CONTROL ---")
-    print(f" > EMS Target Total: {target_total_watts}W")
-    print(f" > Calculated Per GPU: {requested_per_card}W")
-    print(f" > APPLIED SAFE LIMIT: {safe_limit}W (Capped at {MAX_PER_GPU_W}W)")
+    if not success:
+        print(f"[POWER] Failed: {message}")
     
-    # Apply command with safe limit
-    cmd = f"rocm-smi --setpowerlimit {safe_limit} -d all"
-    result = gpu_driver.run_command(cmd)
+    return success
 
 def register_node():
     """
@@ -193,10 +186,28 @@ def start_heartbeat_loop(initial_config):
             if response.status_code == 200:
                 data = response.json()
                 watchdog.feed_watchdog()
+                
+                # Handle power adjustment command
                 if data.get("command") == "adjust_power":
-                    target_w = data.get("setpoint_power_w", 1500)
-                    print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
-                    apply_power_limit(target_w, len(telemetry))
+                    target_w = data.get("setpoint_power_w")
+                    
+                    # Validate that setpoint_power_w is present and valid
+                    if target_w is None:
+                        print(f"[WARNING] Power adjustment command missing 'setpoint_power_w' field")
+                    else:
+                        print(f"[COMMAND] Received: Adjust Power to {target_w}W total")
+                        
+                        # Apply power limit securely
+                        success = apply_power_limit(target_w, len(telemetry))
+                        
+                        if success:
+                            print(f"[POWER] Successfully adjusted power")
+                            # Log rate limit status
+                            rate_status = power_control.get_rate_limit_status()
+                            print(f"[POWER] Rate limit: {rate_status['current_count']}/{rate_status['max_allowed']} "
+                                  f"in last {rate_status['period_seconds']}s")
+                        else:
+                            print(f"[POWER] Power adjustment rejected or failed")
                 # Burada interval değiştirilmesin!
 
             elif response.status_code == 401:
