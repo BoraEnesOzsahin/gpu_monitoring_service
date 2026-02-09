@@ -2,6 +2,7 @@ import threading
 import time
 import os
 import sys
+import signal
 
 """
 RECKON Client - Internal Watchdog
@@ -15,6 +16,7 @@ class Watchdog:
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
+        self._shutdown_in_progress = False
     
     def start(self):
         """Start the watchdog monitoring thread."""
@@ -29,7 +31,9 @@ class Watchdog:
     
     def stop(self):
         """Stop the watchdog."""
-        self.running = False
+        with self._lock:
+            self.running = False
+            self._shutdown_in_progress = True
     
     def _monitor(self):
         """Internal monitoring loop."""
@@ -38,6 +42,12 @@ class Watchdog:
             
             with self._lock:
                 elapsed = time.time() - self.last_heartbeat
+                shutdown_in_progress = self._shutdown_in_progress
+            
+            # Don't restart if shutdown is in progress
+            if shutdown_in_progress:
+                print("[WATCHDOG] Shutdown in progress, stopping monitoring")
+                break
             
             if elapsed > self.timeout:
                 print(f"[WATCHDOG] ALERT! No heartbeat for {int(elapsed)}s. Restarting...")
@@ -46,8 +56,16 @@ class Watchdog:
     def _restart_service(self):
         """Restart the Python process."""
         print("[WATCHDOG] Initiating restart...")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
-
+        # Only restart if we're running as a service (systemd will manage it)
+        # Check if INVOCATION_ID is set (systemd sets this)
+        if os.getenv("INVOCATION_ID"):
+            # Running under systemd - use execv to restart
+            os.execv(sys.executable, [sys.executable] + sys.argv)
+        else:
+            # Running manually - exit cleanly instead of restarting
+            print("[WATCHDOG] Running in manual mode, exiting instead of restarting")
+            print("[WATCHDOG] Please restart the service manually if needed")
+            os._exit(1)
 
 # Global watchdog instance
 _watchdog = None
@@ -64,3 +82,10 @@ def feed_watchdog():
     global _watchdog
     if _watchdog:
         _watchdog.feed()
+
+def stop_watchdog():
+    """Stop the global watchdog (call during shutdown)."""
+    global _watchdog
+    if _watchdog:
+        _watchdog.stop()
+        print("[WATCHDOG] Stopped")

@@ -39,6 +39,8 @@ def signal_handler(signum, frame):
     global _shutdown_requested
     print(f"\n[SHUTDOWN] Received signal {signum}. Initiating graceful shutdown...")
     _shutdown_requested = True
+    # Stop the watchdog to prevent restart during shutdown
+    watchdog.stop_watchdog()
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
@@ -311,6 +313,7 @@ def main():
             time.sleep(STATE_MACHINE_CYCLE_DELAY)
     
     # Exit cleanly
+    watchdog.stop_watchdog()
     print("\n[SHUTDOWN] Service stopped gracefully.")
     print("--- RECKON GPU CLIENT STOPPED ---")
 
