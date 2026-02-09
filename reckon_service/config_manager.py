@@ -38,12 +38,27 @@ def get_hardware_id():
 def load_secrets():
     """
     Tries to load the saved API Token and Node ID from disk.
-    Returns: dict or None (if not found)
+    Returns: dict or None (if not found or if api_token is invalid)
+    
+    SAFETY: Rejects null/empty api_token to prevent infinite loop.
+    If api_token is None, empty string, or missing, returns None.
     """
     if os.path.exists(SECRETS_FILE):
         try:
             with open(SECRETS_FILE, 'r') as f:
-                return json.load(f)
+                data = json.load(f)
+                
+            # SAFETY: Validate api_token exists and is not null/empty
+            # This prevents infinite restart loop if token is missing
+            if not data:
+                return None
+            
+            api_token = data.get("api_token")
+            if not api_token:
+                print("Warning: api_token is null or empty. Rejecting secrets.")
+                return None
+            
+            return data
         except json.JSONDecodeError:
             print("Warning: secrets file is corrupted.")
             return None

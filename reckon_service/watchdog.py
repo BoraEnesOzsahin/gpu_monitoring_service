@@ -15,6 +15,8 @@ class Watchdog:
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
+        # SAFETY: Maximum allowed timeout multiplier for validation
+        self.MAX_TIMEOUT_MULTIPLIER = 10
     
     def start(self):
         """Start the watchdog monitoring thread."""
@@ -34,18 +36,37 @@ class Watchdog:
     def _monitor(self):
         """Internal monitoring loop."""
         while self.running:
+            # SAFETY: Sleep at start of loop to prevent CPU burn
+            # This ensures we never spin even if time calculations fail
             time.sleep(10)  # Check every 10 seconds
             
-            with self._lock:
-                elapsed = time.time() - self.last_heartbeat
-            
-            if elapsed > self.timeout:
-                print(f"[WATCHDOG] ALERT! No heartbeat for {int(elapsed)}s. Restarting...")
-                self._restart_service()
+            try:
+                with self._lock:
+                    elapsed = time.time() - self.last_heartbeat
+                
+                # SAFETY: Validate elapsed is reasonable (positive and not too large)
+                if elapsed < 0 or elapsed > (self.timeout * self.MAX_TIMEOUT_MULTIPLIER):
+                    print(f"[WATCHDOG] WARNING: Suspicious elapsed time: {elapsed}s. Resetting.")
+                    with self._lock:
+                        self.last_heartbeat = time.time()
+                    continue
+                
+                if elapsed > self.timeout:
+                    print(f"[WATCHDOG] ALERT! No heartbeat for {int(elapsed)}s. Restarting...")
+                    self._restart_service()
+            except Exception as e:
+                print(f"[WATCHDOG] Error in monitor loop: {e}. Continuing...")
+                # Continue monitoring even if one iteration fails
     
     def _restart_service(self):
         """Restart the Python process."""
         print("[WATCHDOG] Initiating restart...")
+        
+        # SAFETY: Cooldown prevents rapid restart loop
+        # This ensures we don't hammer the CPU if restart keeps failing
+        print("[WATCHDOG] Waiting 10 seconds before restart...")
+        time.sleep(10)
+        
         os.execv(sys.executable, [sys.executable] + sys.argv)
 
 
