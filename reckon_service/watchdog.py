@@ -30,8 +30,10 @@ class Watchdog:
             self.last_heartbeat = time.time()
     
     def stop(self):
-        """Stop the watchdog."""
+        """Stop the watchdog. Safe to call multiple times."""
         with self._lock:
+            if not self.running:
+                return  # Already stopped
             self.running = False
             self._shutdown_in_progress = True
     
@@ -60,21 +62,26 @@ class Watchdog:
         # Check if INVOCATION_ID is set (systemd sets this)
         if os.getenv("INVOCATION_ID"):
             # Running under systemd - use execv to restart
+            # Using os.execv here is intentional as it replaces the process
             os.execv(sys.executable, [sys.executable] + sys.argv)
         else:
-            # Running manually - exit cleanly instead of restarting
+            # Running manually - exit forcefully instead of restarting
+            # Using os._exit() here is intentional to force termination of a hung process
+            # This is appropriate because the watchdog only triggers when the service is unresponsive
             print("[WATCHDOG] Running in manual mode, exiting instead of restarting")
             print("[WATCHDOG] Please restart the service manually if needed")
             os._exit(1)
 
 # Global watchdog instance
 _watchdog = None
+_watchdog_stopped = False
 
 def init_watchdog(timeout_seconds=120):
     """Initialize and start the global watchdog."""
-    global _watchdog
+    global _watchdog, _watchdog_stopped
     _watchdog = Watchdog(timeout_seconds)
     _watchdog.start()
+    _watchdog_stopped = False
     return _watchdog
 
 def feed_watchdog():
@@ -84,8 +91,9 @@ def feed_watchdog():
         _watchdog.feed()
 
 def stop_watchdog():
-    """Stop the global watchdog (call during shutdown)."""
-    global _watchdog
-    if _watchdog:
+    """Stop the global watchdog (call during shutdown). Safe to call multiple times."""
+    global _watchdog, _watchdog_stopped
+    if _watchdog and not _watchdog_stopped:
         _watchdog.stop()
+        _watchdog_stopped = True
         print("[WATCHDOG] Stopped")
