@@ -223,7 +223,6 @@ python test_watchdog_graceful.py
 - ✓ Watchdog Stop
 - ✓ Feed Prevents Shutdown
 - ✓ Timeout Graceful Shutdown
-- ✓ Rate Limit Status
 
 ## FAQ
 
