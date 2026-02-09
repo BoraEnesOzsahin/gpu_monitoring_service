@@ -21,7 +21,7 @@ RETRY_DELAY = config_manager.RETRY_DELAY
 def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
-    SAFETY: Never exceeds 150W per card.
+    SAFETY: Never exceeds 210W per card (hardware max for RX5600).
     """
     if gpu_count == 0:
         return
@@ -112,6 +112,10 @@ def register_node():
         except requests.exceptions.RequestException as e:
             print(f"NETWORK ERROR: {e}. Retrying in 30s...")
             time.sleep(30)
+        
+        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
+        # This sleep is OUTSIDE the try/except to always execute
+        time.sleep(1)
 
 
 
@@ -163,6 +167,12 @@ def start_heartbeat_loop(initial_config):
     node_id = secrets["node_id"]
     token = secrets["api_token"]
     
+    # SAFETY: Guard against null/empty token to prevent infinite loop
+    if not token or token == "":
+        print("CRITICAL: api_token is null or empty. Deleting secrets.")
+        config_manager.delete_secrets()
+        return # Go back to main loop
+    
     # Her zaman sadece env'den al
     interval = DEFAULT_HEARTBEAT_INTERVAL
     
@@ -210,6 +220,8 @@ def start_heartbeat_loop(initial_config):
         except requests.exceptions.RequestException as e:
             print(f"Network Error: {e}")
         
+        # SAFETY: Sleep is OUTSIDE try/except to always execute
+        # This prevents CPU burn even if an exception occurs
         time.sleep(interval)
 
 
@@ -247,6 +259,10 @@ def main():
             # If no token, go to INITIALIZING
             initial_config = register_node()
             start_heartbeat_loop(initial_config)
+        
+        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
+        # This sleep is OUTSIDE any try/except to always execute
+        time.sleep(5)
 
 if __name__ == "__main__":
     main()
