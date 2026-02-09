@@ -48,7 +48,7 @@ def load_secrets():
                 if data.get("api_token") is not None and data.get("node_id") is not None:
                     return data
                 else:
-                    print("Warning: secrets.json exists but credentials are incomplete (pending state).")
+                    print("Warning: secrets.json exists but credentials are incomplete (pending state). Will re-initialize.")
                     return None
         except json.JSONDecodeError:
             print("Warning: secrets file is corrupted.")

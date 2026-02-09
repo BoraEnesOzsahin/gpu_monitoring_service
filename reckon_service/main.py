@@ -164,7 +164,7 @@ def start_heartbeat_loop(initial_config):
     
     # Guard against null/empty token
     if not token:
-        print("CRITICAL: api_token is None/empty. Cannot run heartbeat. Returning to init.")
+        print("CRITICAL: api_token is None/empty. Deleting invalid secrets and returning to initialization.")
         config_manager.delete_secrets()
         return
     
