@@ -110,7 +110,16 @@ You should see output like:
 Sending registration request to http://your-ems-server:8000/api/v1/nodes/initialize...
 ```
 
-Press `Ctrl+C` to stop the test run.
+**Important: Manual Mode Behavior**
+
+When running manually (not as a systemd service):
+- Press `Ctrl+C` to cleanly stop the service
+- The watchdog will detect the shutdown and stop monitoring
+- The process will exit completely without restarting
+- If the watchdog timeout is reached (service becomes unresponsive), it will exit cleanly instead of restarting
+- You must manually restart the service if needed
+
+This prevents runaway background processes that continue running even after Ctrl+C.
 
 ### 4. Install the Systemd Service
 
@@ -159,6 +168,26 @@ You should see:
 
 ## Managing the Service
 
+**Important: The service behaves differently depending on how it's run:**
+
+### Running Modes
+
+#### 1. Systemd Service Mode (Recommended for Production)
+
+When running as a systemd service:
+- Service automatically restarts on failures (`Restart=on-failure`)
+- Manual stops (`systemctl stop`) will NOT restart the service
+- Watchdog can restart the process if it becomes unresponsive
+- Service is managed by systemd, ensuring reliability
+
+#### 2. Manual Mode (For Testing/Development)
+
+When running manually with `python main.py`:
+- Ctrl+C cleanly stops the service without restarting
+- Watchdog exits instead of restarting if timeout is reached
+- No automatic restart on crashes
+- Useful for testing and debugging
+
 ### Start the Service
 
 ```bash
@@ -170,6 +199,8 @@ sudo systemctl start reckon-client
 ```bash
 sudo systemctl stop reckon-client
 ```
+
+**Note:** With `Restart=on-failure`, stopping the service with `systemctl stop` will NOT cause it to restart. The service will only restart if it crashes or exits with a failure code.
 
 ### Restart the Service
 
@@ -231,7 +262,9 @@ The watchdog system uses two layers of protection:
 
 - Runs as a daemon thread within the Python process
 - Requires regular "feed" calls from the main service loop
-- If not fed within `WATCHDOG_TIMEOUT` seconds, it restarts the process
+- If not fed within `WATCHDOG_TIMEOUT` seconds, takes action based on running mode:
+  - **Systemd Mode**: Restarts the process (systemd manages lifecycle)
+  - **Manual Mode**: Exits cleanly (prevents runaway processes)
 - Protects against:
   - Frozen threads
   - Infinite loops
@@ -241,7 +274,8 @@ The watchdog system uses two layers of protection:
 #### Systemd Watchdog
 
 - Monitors the entire process from outside
-- Automatically restarts if the process crashes or exits unexpectedly
+- With `Restart=on-failure`, only restarts on actual failures
+- Manual stops (`systemctl stop` or Ctrl+C in manual mode) will NOT restart
 - Protects against:
   - Segmentation faults
   - Out of memory errors
@@ -319,6 +353,35 @@ If the internal watchdog restarts too frequently:
 1. Increase `WATCHDOG_TIMEOUT` in `.env`
 2. Check if network operations are taking too long
 3. Review heartbeat interval vs. timeout ratio
+
+### Process Running in Background After Ctrl+C
+
+If you're concerned about processes running in the background:
+
+**This should no longer happen** with the current implementation:
+
+1. **Manual Mode Protection**: When running manually (not as systemd service), the watchdog will exit cleanly instead of restarting.
+
+2. **Signal Handling**: Ctrl+C (SIGINT) and SIGTERM properly stop the watchdog before exiting.
+
+3. **Systemd Configuration**: The service uses `Restart=on-failure`, so manual stops won't cause restarts.
+
+**To verify no background processes:**
+
+```bash
+# Check for any running Python processes related to the service
+ps aux | grep "main.py"
+
+# If you find any unwanted processes, you can kill them:
+pkill -f "main.py"
+```
+
+**If issues persist:**
+
+1. Make sure you're running the latest version of the code
+2. Check that the systemd service file has `Restart=on-failure` (not `Restart=always`)
+3. Verify that stopping the service works: `sudo systemctl stop reckon-client`
+4. Check logs for any restart loops: `sudo journalctl -u reckon-client -f`
 
 ## Uninstalling
 

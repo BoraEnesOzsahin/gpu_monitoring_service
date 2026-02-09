@@ -10,7 +10,8 @@ EnvironmentFile=/home/radmin/scripts/gpu_monitoring_service/.env
 ExecStart=/home/radmin/scripts/gpu_monitoring_service/venv/bin/python main.py
 
 # Watchdog and restart settings
-Restart=always
+# Only restart on failure, not on clean shutdown (Ctrl+C or systemctl stop)
+Restart=on-failure
 RestartSec=10
 WatchdogSec=120
 
