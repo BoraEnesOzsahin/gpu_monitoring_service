@@ -177,15 +177,19 @@ if data.get("action") == "adjust_power":
 
 **Does it lock hardware?** NO - it only adjusts power limits, doesn't prevent GPU access
 
+**STATUS:** ✅ **FIXED** - See [SECURITY_FIX_SUMMARY.md](SECURITY_FIX_SUMMARY.md) for details
+
 ---
 
-### 2. Dangerous Process Restart Mechanism (execv)
+### 2. ~~Dangerous Process Restart Mechanism (execv)~~ ✅ FIXED
 
 **File:** `reckon_service/watchdog.py` (lines 46-49)
 
-**Issue:** Watchdog forcefully restarts the entire Python process using `os.execv()` without graceful shutdown.
+**STATUS:** ✅ **FIXED** - Replaced with graceful shutdown mechanism
 
-**Code:**
+**Previous Issue:** Watchdog forcefully restarted the entire Python process using `os.execv()` without graceful shutdown.
+
+**Previous Code:**
 ```python
 def _check_timeout(self):
     elapsed = time.time() - self.last_feed
@@ -195,37 +199,45 @@ def _check_timeout(self):
         os.execv(sys.executable, [sys.executable] + sys.argv)
 ```
 
-**Risk Level:** 🔴 **HIGH**
+**Previous Risk Level:** 🔴 **HIGH**
 
-**Impact:**
+**Previous Impact:**
 - **No graceful shutdown or cleanup**
 - Can leave GPU processes orphaned
 - Can corrupt GPU state if mining occurs during restart
 - No opportunity for processes to save state
 - Immediate replacement without cleanup
 
-**Triggering Conditions:**
-- No heartbeat for 120 seconds (default `WATCHDOG_TIMEOUT`)
-- Network timeouts, frozen threads, deadlocks
-- Long-running operations
+**Fix Implemented:**
 
-**Could it lock hardware?** POTENTIALLY - forceful restarts without cleanup could leave GPU in inconsistent state, potentially requiring reboot to recover.
+Now uses graceful shutdown with cleanup:
 
-**Recommendation:**
 ```python
-# Better approach:
-import signal
-import atexit
-
-def graceful_shutdown():
-    print("[WATCHDOG] Gracefully shutting down...")
-    # Clean up GPU state
-    # Close network connections
-    # Save state
-    sys.exit(1)  # Let systemd restart cleanly
-
-signal.signal(signal.SIGTERM, lambda sig, frame: graceful_shutdown())
+def _trigger_graceful_shutdown(self, reason):
+    """
+    Trigger a graceful shutdown instead of forceful restart.
+    This allows cleanup to occur and lets systemd restart the service.
+    """
+    global _shutdown_requested, _shutdown_reason
+    _shutdown_requested = True
+    _shutdown_reason = reason
+    print(f"[WATCHDOG] Shutdown requested. Reason: {reason}")
+    print("[WATCHDOG] Service will exit cleanly and systemd will restart it.")
 ```
+
+**Improvements:**
+- ✅ Graceful shutdown with cleanup function
+- ✅ Signal handlers for SIGTERM and SIGINT
+- ✅ Resources released properly (watchdog stopped, connections closed)
+- ✅ Systemd handles restart (Restart=always)
+- ✅ Comprehensive test suite (7/7 tests passing)
+- ✅ Shutdown checks in all loops (main, heartbeat, registration)
+
+**New Risk Level:** 🟢 **LOW**
+
+**Documentation:** See [WATCHDOG_GRACEFUL_SHUTDOWN.md](WATCHDOG_GRACEFUL_SHUTDOWN.md) for complete details
+
+**Test Results:** 7/7 tests passing ✅
 
 ---
 

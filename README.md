@@ -176,30 +176,53 @@ watch -n 1 rocm-smi --showpower
 4. ✅ **Command Injection Prevention** - Secure subprocess execution
 5. ✅ **Feature Toggle** - `ALLOW_REMOTE_POWER_CONTROL` setting
 
-See [SECURITY_FIX_SUMMARY.md](SECURITY_FIX_SUMMARY.md) for complete implementation details.
+**Watchdog Graceful Shutdown** - See [WATCHDOG_GRACEFUL_SHUTDOWN.md](WATCHDOG_GRACEFUL_SHUTDOWN.md)
+
+6. ✅ **Graceful Shutdown** - Replaced `os.execv()` with cleanup mechanism
+7. ✅ **Signal Handlers** - Proper SIGTERM and SIGINT handling
+8. ✅ **Resource Cleanup** - GPU state, connections released properly
+9. ✅ **Systemd Integration** - Let systemd handle restart
+
+See [SECURITY_FIX_SUMMARY.md](SECURITY_FIX_SUMMARY.md) for power control details.  
+See [WATCHDOG_GRACEFUL_SHUTDOWN.md](WATCHDOG_GRACEFUL_SHUTDOWN.md) for watchdog details.
 
 ### Known Security Issues
 
 See [SECURITY_ANALYSIS.md](SECURITY_ANALYSIS.md) for complete details:
 
 1. ~~**Command Injection Risk**~~ - ✅ FIXED (secure subprocess calls)
-2. **Forceful Restart** - Watchdog uses `os.execv()` without cleanup (future work)
+2. ~~**Forceful Restart**~~ - ✅ FIXED (graceful shutdown with cleanup)
 3. **Plaintext Secrets** - JWT tokens stored unencrypted (future work)
 4. ~~**No Rate Limiting**~~ - ✅ FIXED (5 changes per 5 minutes)
 5. ~~**No Command Validation**~~ - ✅ FIXED (comprehensive validation)
 
 ### Security Test Results
 
+**Power Control Tests:**
 ```bash
-# Run security test suite
+# Run power security test suite
 python test_power_security.py
 ```
-
 **Latest Results:** 5/5 tests passed ✅
 - ✓ Input Validation (10/10 cases)
 - ✓ Rate Limiting
 - ✓ Audit Logging
 - ✓ Secure Power Adjustment
+- ✓ Rate Limit Status
+
+**Watchdog Tests:**
+```bash
+# Run watchdog graceful shutdown test suite
+python test_watchdog_graceful.py
+```
+**Latest Results:** 7/7 tests passed ✅
+- ✓ No execv Usage
+- ✓ Shutdown Helper Functions
+- ✓ Global Watchdog Functions
+- ✓ Signal Handler Setup
+- ✓ Watchdog Stop
+- ✓ Feed Prevents Shutdown
+- ✓ Timeout Graceful Shutdown
 - ✓ Rate Limit Status
 
 ## FAQ
