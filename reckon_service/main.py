@@ -4,6 +4,7 @@ import time
 import requests
 import json
 import os
+import signal
 import gpu_driver
 import config_manager
 import watchdog
@@ -18,12 +19,25 @@ Reference: Protocol Doc Section 2 and 3
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
 
+# Infinite loop protection
+MAX_REGISTRATION_RETRIES = 100  # Maximum attempts before giving up
+MAX_CONSECUTIVE_HEARTBEAT_FAILURES = 50  # Maximum consecutive heartbeat failures
+
+# Graceful shutdown flag
+_shutdown_requested = False
+
 # Power limits for RX 5600 XT (6 GPUs)
 MAX_PER_GPU_W = 150  # Stock TDP of RX 5600 XT
 MIN_PER_GPU_W = 75   # Minimum to keep card stable under load
 GPU_COUNT = 6
 SYSTEM_MAX_POWER_W = GPU_COUNT * MAX_PER_GPU_W  # 900W
 SYSTEM_MIN_POWER_W = GPU_COUNT * MIN_PER_GPU_W  # 450W
+
+def signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    global _shutdown_requested
+    print(f"\n[SHUTDOWN] Received signal {signum}. Initiating graceful shutdown...")
+    _shutdown_requested = True
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
@@ -57,6 +71,7 @@ def register_node():
     """
     Handles the INITIALIZING state.
     Sends inventory to server and waits for approval.
+    Returns None if maximum retries exceeded.
     """
     print("\n[STATE] INITIALIZING...")
     
@@ -76,12 +91,14 @@ def register_node():
 
     url = f"{config_manager.EMS_API_URL}/api/v1/nodes/initialize"
     
-    while True:
+    retry_count = 0
+    while retry_count < MAX_REGISTRATION_RETRIES and not _shutdown_requested:
         try:
             # Feed watchdog during registration to prevent timeout
             watchdog.feed_watchdog()
             
-            print(f"Sending registration request to {url}...")
+            retry_count += 1
+            print(f"Sending registration request to {url}... (Attempt {retry_count}/{MAX_REGISTRATION_RETRIES})")
             response = requests.post(url, json=payload, timeout=10)
             
             # CASE 1: 200 OK -> Approved
@@ -117,6 +134,13 @@ def register_node():
         except requests.exceptions.RequestException as e:
             print(f"NETWORK ERROR: {e}. Retrying in 30s...")
             time.sleep(30)
+    
+    # If we reach here, we've exceeded max retries or shutdown was requested
+    if _shutdown_requested:
+        print("[SHUTDOWN] Registration interrupted by shutdown request.")
+    else:
+        print(f"[ERROR] Maximum registration attempts ({MAX_REGISTRATION_RETRIES}) exceeded. Giving up.")
+    return None
 
 
 
@@ -156,6 +180,7 @@ def start_heartbeat_loop(initial_config):
     """
     Handles the RUNNING state.
     Sends telemetry and processes commands.
+    Returns when max failures exceeded or shutdown requested.
     """
     print("\n[STATE] RUNNING")
     
@@ -174,7 +199,8 @@ def start_heartbeat_loop(initial_config):
     url = f"{config_manager.EMS_API_URL}/api/v1/nodes/heartbeat"
     headers = {"Authorization": f"Bearer {token}"}
 
-    while True:
+    consecutive_failures = 0
+    while consecutive_failures < MAX_CONSECUTIVE_HEARTBEAT_FAILURES and not _shutdown_requested:
         try:
             # 1. Collect Telemetry
             telemetry = gpu_driver.get_gpu_telemetry()
@@ -198,6 +224,7 @@ def start_heartbeat_loop(initial_config):
             if response.status_code == 200:
                 data = response.json()
                 watchdog.feed_watchdog()
+                consecutive_failures = 0  # Reset failure counter on success
                 if data.get("command") == "adjust_power":
                     target_w = data.get("setpoint_power_w", SYSTEM_MAX_POWER_W)
                     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
@@ -211,11 +238,23 @@ def start_heartbeat_loop(initial_config):
 
             else:
                 print(f"Server warning: {response.status_code}")
+                consecutive_failures += 1
+                print(f"Consecutive failures: {consecutive_failures}/{MAX_CONSECUTIVE_HEARTBEAT_FAILURES}")
 
         except requests.exceptions.RequestException as e:
             print(f"Network Error: {e}")
+            consecutive_failures += 1
+            print(f"Consecutive failures: {consecutive_failures}/{MAX_CONSECUTIVE_HEARTBEAT_FAILURES}")
         
         time.sleep(interval)
+    
+    # If we exit the loop, log the reason
+    if _shutdown_requested:
+        print("[SHUTDOWN] Heartbeat loop interrupted by shutdown request.")
+    elif consecutive_failures >= MAX_CONSECUTIVE_HEARTBEAT_FAILURES:
+        print(f"[ERROR] Maximum consecutive failures ({MAX_CONSECUTIVE_HEARTBEAT_FAILURES}) exceeded. Exiting heartbeat loop.")
+    
+    return
 
 
 
@@ -228,6 +267,10 @@ def main():
     """
     print("--- RECKON GPU CLIENT STARTED ---")
     
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
+    
     # Initialize watchdog
     try:
         watchdog_timeout = int(os.getenv("WATCHDOG_TIMEOUT", "120"))
@@ -237,7 +280,14 @@ def main():
     
     watchdog.init_watchdog(watchdog_timeout)
     
-    while True:
+    # Prevent infinite outer loop - limit total state machine cycles
+    MAX_STATE_MACHINE_CYCLES = 10
+    cycle_count = 0
+    
+    while cycle_count < MAX_STATE_MACHINE_CYCLES and not _shutdown_requested:
+        cycle_count += 1
+        print(f"\n[STATE MACHINE] Cycle {cycle_count}/{MAX_STATE_MACHINE_CYCLES}")
+        
         # Check if we are already registered
         secrets = config_manager.load_secrets()
         
@@ -251,7 +301,26 @@ def main():
         else:
             # If no token, go to INITIALIZING
             initial_config = register_node()
-            start_heartbeat_loop(initial_config)
+            if initial_config:
+                start_heartbeat_loop(initial_config)
+            else:
+                # Registration failed, exit
+                print("[ERROR] Registration failed. Service will exit.")
+                break
+        
+        # If we exit the inner loops normally (not due to shutdown), 
+        # wait a bit before cycling again to avoid tight loops
+        if not _shutdown_requested:
+            print("[INFO] Waiting 30 seconds before next cycle...")
+            time.sleep(30)
+    
+    # Exit cleanly
+    if _shutdown_requested:
+        print("\n[SHUTDOWN] Service stopped gracefully.")
+    else:
+        print(f"\n[EXIT] Maximum state machine cycles ({MAX_STATE_MACHINE_CYCLES}) reached. Service exiting.")
+    
+    print("--- RECKON GPU CLIENT STOPPED ---")
 
 if __name__ == "__main__":
     main()
