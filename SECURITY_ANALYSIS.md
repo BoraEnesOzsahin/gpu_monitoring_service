@@ -76,7 +76,7 @@ done
 
 ```bash
 #!/bin/bash
-echo "Hallo World from emergency script"
+echo "Hello World from emergency script"
 ```
 
 A minimal placeholder template for users to add custom crash recovery actions.
