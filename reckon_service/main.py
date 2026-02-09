@@ -65,6 +65,12 @@ def register_node():
     url = f"{config_manager.EMS_API_URL}/api/v1/nodes/initialize"
     
     while True:
+        # Check for shutdown request
+        if watchdog.should_shutdown():
+            reason = watchdog.get_shutdown_reason()
+            print(f"[REGISTRATION] Shutdown requested. Reason: {reason}")
+            raise SystemExit(f"Graceful shutdown during registration: {reason}")
+        
         try:
             # Feed watchdog during registration to prevent timeout
             watchdog.feed_watchdog()
@@ -163,6 +169,12 @@ def start_heartbeat_loop(initial_config):
     headers = {"Authorization": f"Bearer {token}"}
 
     while True:
+        # Check for shutdown request
+        if watchdog.should_shutdown():
+            reason = watchdog.get_shutdown_reason()
+            print(f"[HEARTBEAT] Shutdown requested. Reason: {reason}")
+            raise SystemExit(f"Graceful shutdown: {reason}")
+        
         try:
             # 1. Collect Telemetry
             telemetry = gpu_driver.get_gpu_telemetry()
@@ -228,11 +240,36 @@ def start_heartbeat_loop(initial_config):
 
 
 
+def cleanup():
+    """
+    Cleanup function called before shutdown.
+    Ensures resources are released properly.
+    """
+    print("[CLEANUP] Starting cleanup process...")
+    
+    # Stop the watchdog
+    try:
+        watchdog.stop_watchdog()
+        print("[CLEANUP] Watchdog stopped")
+    except Exception as e:
+        print(f"[CLEANUP] Error stopping watchdog: {e}")
+    
+    # Additional cleanup can be added here:
+    # - Close any open network connections
+    # - Save state if needed
+    # - Release GPU resources if needed
+    
+    print("[CLEANUP] Cleanup complete")
+
+
 def main():
     """
     Main State Machine Entry Point
     """
     print("--- RECKON GPU CLIENT STARTED ---")
+    
+    # Set up signal handlers for graceful shutdown
+    watchdog.setup_signal_handlers(cleanup)
     
     # Initialize watchdog
     try:
@@ -243,21 +280,47 @@ def main():
     
     watchdog.init_watchdog(watchdog_timeout)
     
-    while True:
-        # Check if we are already registered
-        secrets = config_manager.load_secrets()
-        
-        if secrets:
-            # If we have a token, jump straight to RUNNING
-            print("Found saved credentials. Resuming operation...")
-            # We create a dummy initial config since we are resuming
-            dummy_config = {"initial_command": {"heartbeat_interval":DEFAULT_HEARTBEAT_INTERVAL
+    try:
+        while True:
+            # Check for shutdown request from watchdog
+            if watchdog.should_shutdown():
+                reason = watchdog.get_shutdown_reason()
+                print(f"[MAIN] Shutdown requested. Reason: {reason}")
+                cleanup()
+                print("[MAIN] Exiting for systemd restart...")
+                sys.exit(1)  # Exit with error code so systemd restarts
+            
+            # Check if we are already registered
+            secrets = config_manager.load_secrets()
+            
+            if secrets:
+                # If we have a token, jump straight to RUNNING
+                print("Found saved credentials. Resuming operation...")
+                # We create a dummy initial config since we are resuming
+                dummy_config = {"initial_command": {"heartbeat_interval":DEFAULT_HEARTBEAT_INTERVAL
 }}
-            start_heartbeat_loop(dummy_config)
-        else:
-            # If no token, go to INITIALIZING
-            initial_config = register_node()
-            start_heartbeat_loop(initial_config)
+                start_heartbeat_loop(dummy_config)
+            else:
+                # If no token, go to INITIALIZING
+                initial_config = register_node()
+                start_heartbeat_loop(initial_config)
+    
+    except SystemExit as e:
+        # Handle graceful shutdown from heartbeat loop
+        print(f"[MAIN] System exit requested: {e}")
+        cleanup()
+        raise
+    except KeyboardInterrupt:
+        # This shouldn't happen as SIGINT is handled by signal handler
+        print("\n[MAIN] Keyboard interrupt received")
+        cleanup()
+        sys.exit(0)
+    except Exception as e:
+        print(f"[MAIN] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        cleanup()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
