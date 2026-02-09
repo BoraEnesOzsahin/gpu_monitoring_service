@@ -21,7 +21,7 @@ RETRY_DELAY = config_manager.RETRY_DELAY
 def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
-    SAFETY: Never exceeds 150W per card.
+    SAFETY: Never exceeds 210W per card, never below 100W per card.
     """
     if gpu_count == 0:
         return
@@ -34,8 +34,7 @@ def apply_power_limit(target_total_watts, gpu_count):
     requested_per_card = int(target_total_watts / gpu_count)
     
     # 3. (Clamping Logic)
-    # If desired > 150 ise, 150 yap.
-    # If desired < 50 ise, 50 yap.
+    # Clamp to safe range [MIN_PER_GPU_W, MAX_PER_GPU_W]
     safe_limit = min(requested_per_card, MAX_PER_GPU_W)
     safe_limit = max(safe_limit, MIN_PER_GPU_W)
     
@@ -163,6 +162,12 @@ def start_heartbeat_loop(initial_config):
     node_id = secrets["node_id"]
     token = secrets["api_token"]
     
+    # Guard against null/empty token
+    if not token:
+        print("CRITICAL: api_token is None/empty. Cannot run heartbeat. Returning to init.")
+        config_manager.delete_secrets()
+        return
+    
     # Her zaman sadece env'den al
     interval = DEFAULT_HEARTBEAT_INTERVAL
     
@@ -247,6 +252,10 @@ def main():
             # If no token, go to INITIALIZING
             initial_config = register_node()
             start_heartbeat_loop(initial_config)
+        
+        # Safety net: always sleep before retrying to prevent 100% CPU burn
+        print("[MAIN] Loop iteration ended. Waiting 30s before retry...")
+        time.sleep(30)
 
 if __name__ == "__main__":
     main()
