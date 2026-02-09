@@ -124,7 +124,21 @@ WATCHDOG_TIMEOUT=120
 
 # Authentication
 SECRETS_FILE=secrets.json
+
+# Power Control Security (NEW)
+ALLOW_REMOTE_POWER_CONTROL=true    # Enable/disable remote power control
+RATE_LIMIT_MAX_CHANGES=5           # Max power changes in time period
+RATE_LIMIT_PERIOD_SECONDS=300      # Time period (5 minutes)
+POWER_AUDIT_LOG=power_audit.log    # Audit log location
 ```
+
+**Power Control Settings:**
+- `ALLOW_REMOTE_POWER_CONTROL` - Master switch for remote power control (true/false)
+- `RATE_LIMIT_MAX_CHANGES` - Maximum power adjustments allowed (default: 5)
+- `RATE_LIMIT_PERIOD_SECONDS` - Time window for rate limiting (default: 300 = 5 minutes)
+- `POWER_AUDIT_LOG` - Path to audit log file
+
+See [POWER_SECURITY_GUIDE.md](POWER_SECURITY_GUIDE.md) for detailed configuration guide.
 
 ## Monitoring
 
@@ -146,32 +160,47 @@ watch -n 1 rocm-smi --showpower
 - Power limit clamping (100-210W)
 - Command timeout (30s)
 - JWT token authentication
+- **NEW: Comprehensive input validation**
+- **NEW: Rate limiting (5 changes per 5 minutes)**
+- **NEW: Audit logging for all power adjustments**
+- **NEW: Secure command execution (no shell injection)**
+- **NEW: Feature toggle to disable remote power control**
+
+### Security Improvements (Implemented ✅)
+
+**Power Control Security** - See [POWER_SECURITY_GUIDE.md](POWER_SECURITY_GUIDE.md)
+
+1. ✅ **Input Validation** - Comprehensive type and range checks
+2. ✅ **Rate Limiting** - Maximum 5 power changes per 5 minutes
+3. ✅ **Audit Logging** - All adjustments logged to `power_audit.log`
+4. ✅ **Command Injection Prevention** - Secure subprocess execution
+5. ✅ **Feature Toggle** - `ALLOW_REMOTE_POWER_CONTROL` setting
+
+See [SECURITY_FIX_SUMMARY.md](SECURITY_FIX_SUMMARY.md) for complete implementation details.
 
 ### Known Security Issues
 
 See [SECURITY_ANALYSIS.md](SECURITY_ANALYSIS.md) for complete details:
 
-1. **Command Injection Risk** - `subprocess.run()` uses `shell=True`
-2. **Forceful Restart** - Watchdog uses `os.execv()` without cleanup
-3. **Plaintext Secrets** - JWT tokens stored unencrypted
-4. **No Rate Limiting** - Unlimited power adjustment commands
-5. **No Command Validation** - Server responses not validated
+1. ~~**Command Injection Risk**~~ - ✅ FIXED (secure subprocess calls)
+2. **Forceful Restart** - Watchdog uses `os.execv()` without cleanup (future work)
+3. **Plaintext Secrets** - JWT tokens stored unencrypted (future work)
+4. ~~**No Rate Limiting**~~ - ✅ FIXED (5 changes per 5 minutes)
+5. ~~**No Command Validation**~~ - ✅ FIXED (comprehensive validation)
 
-### Security Recommendations
+### Security Test Results
 
-**High Priority:**
-1. Remove `shell=True` from all subprocess calls
-2. Implement graceful shutdown in watchdog
-3. Add rate limiting for power adjustments
-4. Validate all server responses
+```bash
+# Run security test suite
+python test_power_security.py
+```
 
-**Medium Priority:**
-1. Encrypt secrets.json
-2. Set file permissions to 600
-3. Add command authentication/signing
-4. Implement audit logging
-
-See full recommendations in [SECURITY_ANALYSIS.md](SECURITY_ANALYSIS.md).
+**Latest Results:** 5/5 tests passed ✅
+- ✓ Input Validation (10/10 cases)
+- ✓ Rate Limiting
+- ✓ Audit Logging
+- ✓ Secure Power Adjustment
+- ✓ Rate Limit Status
 
 ## FAQ
 
