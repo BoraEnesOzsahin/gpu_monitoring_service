@@ -72,7 +72,7 @@ def get_gpu_inventory():
         gpu_item = {
             "gpu_id": f"gpu_{index}",
             "name": clean_name,
-            "tdp_w": 210,
+            "tdp_w": 150,  # RX 5600 XT actual TDP
             "compute_capability": {
                 "value": estimated_mh,
                 "unit": "MH/s"

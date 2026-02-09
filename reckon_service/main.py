@@ -21,21 +21,20 @@ RETRY_DELAY = config_manager.RETRY_DELAY
 def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
-    SAFETY: Never exceeds 150W per card.
+    SAFETY: Never exceeds 150W per card (RX 5600 XT TDP). Never below 75W per card.
     """
     if gpu_count == 0:
         return
 
-    # 1. Hardware Limit (TDP of Cards (right now RX5600) it could be dynamic depending on the card.)
-    MAX_PER_GPU_W = 210 
-    MIN_PER_GPU_W = 100  # Minimum required
+    # 1. Hardware Limit (TDP of RX 5600 XT cards)
+    MAX_PER_GPU_W = 150  # Stock TDP of RX 5600 XT
+    MIN_PER_GPU_W = 75   # Minimum to keep card stable under load
 
     # 2. Calculate the Watt per gpu
     requested_per_card = int(target_total_watts / gpu_count)
     
     # 3. (Clamping Logic)
-    # If desired > 150 ise, 150 yap.
-    # If desired < 50 ise, 50 yap.
+    # Clamp to hardware limits: max 150W, min 75W
     safe_limit = min(requested_per_card, MAX_PER_GPU_W)
     safe_limit = max(safe_limit, MIN_PER_GPU_W)
     
@@ -63,8 +62,8 @@ def register_node():
         "model": "RECKON_RIG_GEN1",
         "fw_version": "1.0.0",
         "capabilities": {
-            "max_power_w": 900, # Physical max
-            "min_power_w": 540
+            "max_power_w": 900,  # 6 GPUs × 150W max per card
+            "min_power_w": 450   # 6 GPUs × 75W min per card
         },
         "gpu_inventory": inventory
     }
@@ -194,7 +193,7 @@ def start_heartbeat_loop(initial_config):
                 data = response.json()
                 watchdog.feed_watchdog()
                 if data.get("command") == "adjust_power":
-                    target_w = data.get("setpoint_power_w", 1500)
+                    target_w = data.get("setpoint_power_w", 900)
                     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
                     apply_power_limit(target_w, len(telemetry))
                 # Burada interval değiştirilmesin!
