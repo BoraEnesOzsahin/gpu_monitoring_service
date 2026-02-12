@@ -6,6 +6,12 @@ RECKON GPU Rig - Hardware Interface
 Purpose: Interface with the hardware to collect GPU inventory and telemetry data.
 """
 
+# --- COMMAND TIMEOUT CONFIGURATION ---
+# rocm-smi can hang indefinitely, causing system lockup
+# These timeouts prevent infinite process accumulation
+COMMAND_TIMEOUT_SECONDS = 30  # Default timeout for general commands
+ROCM_SMI_TIMEOUT_SECONDS = 15  # Shorter timeout for rocm-smi (known to hang)
+
 # --- ETC (ETCHASH) REFERANS TABLOSU (MH/s) ---
 HASHRATE_LOOKUP = {
     "RX 5700": 55.0,
@@ -16,8 +22,34 @@ HASHRATE_LOOKUP = {
     "Vega": 45.0
 }
 
-def run_command(command):
-    """Executes a shell command and returns the output as a string."""
+def run_command(command, timeout=None):
+    """
+    Executes a shell command and returns the output as a string.
+    
+    SAFETY: Added timeout to prevent infinite hangs from rocm-smi.
+    rocm-smi is known to hang indefinitely, which causes process accumulation
+    and eventually system lockup.
+    
+    Args:
+        command: Shell command to execute
+        timeout: Maximum seconds to wait (default: COMMAND_TIMEOUT_SECONDS)
+    
+    Returns:
+        Command output as string, or None on error/timeout
+    """
+    # Use rocm-smi specific timeout for rocm-smi commands
+    # Check if rocm-smi appears as a distinct command (word boundary check)
+    if timeout is None:
+        is_rocm_smi = False
+        if isinstance(command, str):
+            # Match rocm-smi as a complete word/command name using regex
+            # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
+            is_rocm_smi = bool(re.search(r'(?:^|/| )rocm-smi(?:$| )', command))
+        if is_rocm_smi:
+            timeout = ROCM_SMI_TIMEOUT_SECONDS
+        else:
+            timeout = COMMAND_TIMEOUT_SECONDS
+    
     try:
         result = subprocess.run(
             command, 
@@ -25,9 +57,13 @@ def run_command(command):
             check=True, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            timeout=timeout  # SAFETY: Prevent infinite hang
         )
         return result.stdout.strip()
+    except subprocess.TimeoutExpired:
+        print(f"WARNING: Command timed out after {timeout}s: {command}")
+        return None
     except subprocess.CalledProcessError:
         return None
 
