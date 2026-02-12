@@ -9,17 +9,19 @@ Purpose: Monitors the main service and restarts if unresponsive.
 """
 
 class Watchdog:
+    # SAFETY: Configuration constants
+    MAX_TIMEOUT_MULTIPLIER = 10  # Maximum allowed timeout multiplier
+    STARTUP_GRACE_PERIOD_SECONDS = 60  # Grace period for initialization
+    
     def __init__(self, timeout_seconds=120):
         self.timeout = timeout_seconds
         self.last_heartbeat = time.time()
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
-        # SAFETY: Maximum allowed timeout multiplier for validation
-        self.MAX_TIMEOUT_MULTIPLIER = 10
         # SAFETY: Startup grace period to allow initialization
         # During this period, watchdog will not trigger restart
-        self.startup_grace_period = 60  # 60 seconds grace period
+        self.startup_grace_period = self.STARTUP_GRACE_PERIOD_SECONDS
         self.start_time = time.time()
     
     def start(self):

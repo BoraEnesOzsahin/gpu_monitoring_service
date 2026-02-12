@@ -17,6 +17,7 @@ Reference: Protocol Doc Section 2 and 3
 # --- CONSTANTS ---
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
+SERVICE_RESTART_DELAY_SECONDS = 30  # Delay before restarting main loop
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
@@ -264,8 +265,8 @@ def main():
         
         # SAFETY: Prevents rapid restart loop if service exits
         # Increased from 5s to 30s to prevent restart hammering
-        print("Service loop restarting. Waiting 30s before retry...")
-        time.sleep(30)
+        print(f"Service loop restarting. Waiting {SERVICE_RESTART_DELAY_SECONDS}s before retry...")
+        time.sleep(SERVICE_RESTART_DELAY_SECONDS)
 
 if __name__ == "__main__":
     main()
