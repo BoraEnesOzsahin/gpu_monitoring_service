@@ -23,6 +23,9 @@ SECRETS_FILE = os.getenv("SECRETS_FILE", "secrets.json")
 DEFAULT_HEARTBEAT_INTERVAL = int(os.getenv("DEFAULT_HEARTBEAT_INTERVAL", "60"))
 RETRY_DELAY = int(os.getenv("RETRY_DELAY", "60"))
 
+# Redaction configuration
+NODE_ID_REDACTION_LENGTH = 8  # Number of characters to show when redacting node IDs
+
 def get_hardware_id():
     """
     Generates a unique Hardware ID based on the machine's MAC address.
@@ -91,14 +94,14 @@ def save_pending_node_id(node_id):
     # Redact node_id for security
     # - For None: show "None"
     # - For empty string: show "(empty)"
-    # - For short IDs (<=8 chars): show "***"
-    # - For longer IDs: show first 8 chars + "..."
+    # - For short IDs (<=NODE_ID_REDACTION_LENGTH chars): show "***"
+    # - For longer IDs: show first NODE_ID_REDACTION_LENGTH chars + "..."
     if node_id is None:
         redacted_id = "None"
     elif node_id == "":
         redacted_id = "(empty)"
-    elif len(node_id) > 8:
-        redacted_id = f"{node_id[:8]}..."
+    elif len(node_id) > NODE_ID_REDACTION_LENGTH:
+        redacted_id = f"{node_id[:NODE_ID_REDACTION_LENGTH]}..."
     else:
         redacted_id = "***"
     

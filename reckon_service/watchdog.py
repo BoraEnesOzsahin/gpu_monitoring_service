@@ -19,6 +19,8 @@ class Watchdog:
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
+        # SAFETY: start_time is set once during __init__ and only read afterward
+        # This is thread-safe as it's written before the monitoring thread starts
         self.start_time = time.time()
     
     def start(self):
