@@ -88,11 +88,20 @@ def save_pending_node_id(node_id):
     The load_secrets() function rejects null tokens, causing immediate restart.
     Instead, we just log the pending node_id and continue waiting.
     """
-    # Redact node_id for security (only show first 8 chars)
-    if node_id and len(node_id) > 8:
+    # Redact node_id for security
+    # - For None: show "None"
+    # - For empty string: show "(empty)"
+    # - For short IDs (<=8 chars): show "***"
+    # - For longer IDs: show first 8 chars + "..."
+    if node_id is None:
+        redacted_id = "None"
+    elif node_id == "":
+        redacted_id = "(empty)"
+    elif len(node_id) > 8:
         redacted_id = f"{node_id[:8]}..."
     else:
         redacted_id = "***"
+    
     print(f"PENDING: node_id '{redacted_id}' received (not saved to disk yet)")
     print("Waiting for admin approval before saving credentials...")
 
