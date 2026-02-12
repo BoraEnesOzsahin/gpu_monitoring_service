@@ -85,11 +85,11 @@ def save_secrets(node_id, api_token):
 
 def save_pending_node_id(node_id):
     """
-    Saves node_id received during PENDING state (no api_token yet).
+    Logs the pending node_id received during registration.
     
-    SAFETY: Does NOT save to disk to prevent infinite restart loop.
-    The load_secrets() function rejects null tokens, causing immediate restart.
-    Instead, we just log the pending node_id and continue waiting.
+    SAFETY: Does not persist to disk to avoid restart loops.
+    If we saved a null token, load_secrets() would reject it and trigger
+    an immediate restart. Instead, we only log and continue waiting for approval.
     """
     # Redact node_id for security
     # - For None: show "None"
