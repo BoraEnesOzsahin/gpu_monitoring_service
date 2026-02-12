@@ -6,6 +6,20 @@ import sys
 """
 RECKON Client - Internal Watchdog
 Purpose: Monitors the main service and restarts if unresponsive.
+
+IMPORTANT - WATCHDOG SCOPE:
+This watchdog ONLY monitors the RECKON service itself.
+
+✅ DOES: Monitor this service's heartbeat
+✅ DOES: Restart this service if it becomes unresponsive
+
+❌ DOES NOT: Monitor other system processes
+❌ DOES NOT: Monitor mining applications
+❌ DOES NOT: Kill or terminate external processes
+❌ DOES NOT: Interfere with GPU workloads
+
+The restart mechanism (os.execv) only restarts this monitoring service,
+not any other processes on the system.
 """
 
 class Watchdog:
@@ -59,7 +73,19 @@ class Watchdog:
                 # Continue monitoring even if one iteration fails
     
     def _restart_service(self):
-        """Restart the Python process."""
+        """
+        Restart the Python process.
+        
+        IMPORTANT: This ONLY restarts this monitoring service process.
+        It does NOT restart, stop, or interfere with:
+        - Mining processes
+        - Other system services
+        - GPU workloads
+        - Any other applications
+        
+        Uses os.execv to replace the current process with a fresh instance
+        of this service only.
+        """
         print("[WATCHDOG] Initiating restart...")
         
         # SAFETY: Cooldown prevents rapid restart loop
