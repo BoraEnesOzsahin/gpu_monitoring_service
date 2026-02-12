@@ -4,6 +4,21 @@ import re
 """
 RECKON GPU Rig - Hardware Interface
 Purpose: Interface with the hardware to collect GPU inventory and telemetry data.
+
+IMPORTANT - GPU INTERACTION SCOPE:
+This module ONLY:
+✅ Reads GPU information via 'lspci' (read-only)
+✅ Reads GPU telemetry via 'rocm-smi --showtemp --showuse --showpower' (read-only)
+✅ Adjusts power limits via 'rocm-smi --setpowerlimit' (when called from main.py)
+
+This module does NOT:
+❌ Enumerate or interact with processes
+❌ Detect or block mining software
+❌ Lock or reserve GPU resources
+❌ Modify GPU drivers or settings (except power limits)
+❌ Interfere with GPU compute operations
+
+All GPU operations remain available to mining and other applications.
 """
 
 # --- ETC (ETCHASH) REFERANS TABLOSU (MH/s) ---
@@ -17,7 +32,16 @@ HASHRATE_LOOKUP = {
 }
 
 def run_command(command):
-    """Executes a shell command and returns the output as a string."""
+    """
+    Executes a shell command and returns the output as a string.
+    
+    SECURITY NOTE: This function is used ONLY for GPU monitoring commands:
+    - lspci (GPU detection)
+    - rocm-smi --showtemp/--showuse/--showpower (telemetry)
+    - rocm-smi --setpowerlimit (power management)
+    
+    It is NOT used for process control, mining detection, or GPU locking.
+    """
     try:
         result = subprocess.run(
             command, 
@@ -155,6 +179,14 @@ def safe_float(val):
 
 
 def get_gpu_telemetry():
+    """
+    Reads live GPU telemetry (temperature, power, load).
+    Returns a list of GPU telemetry dictionaries.
+    
+    IMPORTANT: This is a READ-ONLY monitoring function.
+    It does NOT modify GPU state or interfere with GPU operations.
+    Mining processes continue to run unaffected by this monitoring.
+    """
     cmd = "rocm-smi --showtemp --showuse --showpower --json"
     raw_output = run_command(cmd)
     telemetry = []

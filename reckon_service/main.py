@@ -11,7 +11,21 @@ import watchdog
 """
 RECKON Client - Main Service
 Purpose: Implements the Client State Machine (Initializing -> Running).
-Reference: Protocol Doc Section 2 and 3 
+Reference: Protocol Doc Section 2 and 3
+
+IMPORTANT - WHAT THIS SERVICE DOES AND DOES NOT DO:
+✅ DOES: Monitor GPU telemetry (temperature, power, load)
+✅ DOES: Adjust GPU power limits (within safe ranges: 100-210W)
+✅ DOES: Report metrics to remote EMS server
+
+❌ DOES NOT: Stop, kill, or terminate any processes
+❌ DOES NOT: Block or prevent mining operations
+❌ DOES NOT: Lock GPU devices or restrict access
+❌ DOES NOT: Interfere with GPU compute operations
+
+This is a MONITORING and ENERGY MANAGEMENT service only.
+Mining processes continue to run even if power limits are adjusted.
+See SECURITY_ANALYSIS.md for detailed analysis.
 """
 
 # --- CONSTANTS ---
@@ -22,6 +36,16 @@ def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
     SAFETY: Never exceeds 210W per card (hardware max for RX5600).
+    
+    IMPORTANT: This function ONLY adjusts GPU power limits.
+    It does NOT:
+    - Stop or terminate any processes
+    - Block mining operations
+    - Lock GPU devices
+    - Interfere with running applications
+    
+    Impact: Mining processes continue to run, potentially at reduced hashrate
+    if power limits are lowered. This is power throttling, NOT process blocking.
     """
     if gpu_count == 0:
         return
@@ -200,6 +224,12 @@ def start_heartbeat_loop(initial_config):
             response = requests.post(url, json=payload, headers=headers, timeout=10)
             
             # 4. Handle Response
+            # SECURITY NOTE: Only ONE command type is supported: "adjust_power"
+            # This service does NOT support:
+            # - Process termination commands
+            # - GPU locking commands
+            # - Mining blocking commands
+            # - Any form of process control
             if response.status_code == 200:
                 data = response.json()
                 watchdog.feed_watchdog()
