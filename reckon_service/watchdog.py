@@ -19,9 +19,6 @@ class Watchdog:
         self.running = True
         self._lock = threading.Lock()
         self._thread = None
-        # SAFETY: Startup grace period to allow initialization
-        # During this period, watchdog will not trigger restart
-        self.startup_grace_period = self.STARTUP_GRACE_PERIOD_SECONDS
         self.start_time = time.time()
     
     def start(self):
@@ -49,8 +46,8 @@ class Watchdog:
             try:
                 # SAFETY: Skip watchdog checks during startup grace period
                 time_since_start = time.time() - self.start_time
-                if time_since_start < self.startup_grace_period:
-                    print(f"[WATCHDOG] Startup grace period: {int(self.startup_grace_period - time_since_start)}s remaining")
+                if time_since_start < self.STARTUP_GRACE_PERIOD_SECONDS:
+                    print(f"[WATCHDOG] Startup grace period: {int(self.STARTUP_GRACE_PERIOD_SECONDS - time_since_start)}s remaining")
                     continue
                 
                 with self._lock:
