@@ -9,8 +9,8 @@ Purpose: Interface with the hardware to collect GPU inventory and telemetry data
 # --- COMMAND TIMEOUT CONFIGURATION ---
 # rocm-smi can hang indefinitely, causing system lockup
 # These timeouts prevent infinite process accumulation
-COMMAND_TIMEOUT_SECONDS = 30  # Maximum time to wait for rocm-smi
-ROCM_SMI_TIMEOUT_SECONDS = 15  # Specific timeout for rocm-smi commands
+COMMAND_TIMEOUT_SECONDS = 30  # Default timeout for general commands
+ROCM_SMI_TIMEOUT_SECONDS = 15  # Shorter timeout for rocm-smi (known to hang)
 
 # --- ETC (ETCHASH) REFERANS TABLOSU (MH/s) ---
 HASHRATE_LOOKUP = {
@@ -38,8 +38,13 @@ def run_command(command, timeout=None):
         Command output as string, or None on error/timeout
     """
     # Use rocm-smi specific timeout for rocm-smi commands
+    # Check if command is a string and contains rocm-smi as a distinct command
     if timeout is None:
-        if "rocm-smi" in command:
+        is_rocm_smi = (
+            isinstance(command, str) and 
+            ("rocm-smi " in command or command.startswith("rocm-smi") or command.endswith("rocm-smi"))
+        )
+        if is_rocm_smi:
             timeout = ROCM_SMI_TIMEOUT_SECONDS
         else:
             timeout = COMMAND_TIMEOUT_SECONDS
