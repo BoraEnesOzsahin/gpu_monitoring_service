@@ -7,6 +7,9 @@
 # Secrets
 secrets.json
 
+# Restart event logs
+restart_events.log
+
 # Python
 __pycache__/
 *.pyc
