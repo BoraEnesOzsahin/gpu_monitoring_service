@@ -38,12 +38,13 @@ def run_command(command, timeout=None):
         Command output as string, or None on error/timeout
     """
     # Use rocm-smi specific timeout for rocm-smi commands
-    # Check if command is a string and contains rocm-smi as a distinct command
+    # Check if rocm-smi appears as a distinct command (word boundary check)
     if timeout is None:
-        is_rocm_smi = (
-            isinstance(command, str) and 
-            ("rocm-smi " in command or command.startswith("rocm-smi") or command.endswith("rocm-smi"))
-        )
+        is_rocm_smi = False
+        if isinstance(command, str):
+            # Match rocm-smi as a complete word/command name using regex
+            # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
+            is_rocm_smi = bool(re.search(r'(?:^|/| )rocm-smi(?:$| )', command))
         if is_rocm_smi:
             timeout = ROCM_SMI_TIMEOUT_SECONDS
         else:
