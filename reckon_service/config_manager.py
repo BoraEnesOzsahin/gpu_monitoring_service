@@ -89,7 +89,10 @@ def save_pending_node_id(node_id):
     Instead, we just log the pending node_id and continue waiting.
     """
     # Redact node_id for security (only show first 8 chars)
-    redacted_id = f"{node_id[:8]}..." if node_id and len(node_id) > 8 else "***"
+    if node_id and len(node_id) > 8:
+        redacted_id = f"{node_id[:8]}..."
+    else:
+        redacted_id = "***"
     print(f"PENDING: node_id '{redacted_id}' received (not saved to disk yet)")
     print("Waiting for admin approval before saving credentials...")
 
