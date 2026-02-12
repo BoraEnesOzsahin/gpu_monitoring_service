@@ -17,6 +17,10 @@ class Watchdog:
         self._thread = None
         # SAFETY: Maximum allowed timeout multiplier for validation
         self.MAX_TIMEOUT_MULTIPLIER = 10
+        # SAFETY: Startup grace period to allow initialization
+        # During this period, watchdog will not trigger restart
+        self.startup_grace_period = 60  # 60 seconds grace period
+        self.start_time = time.time()
     
     def start(self):
         """Start the watchdog monitoring thread."""
@@ -41,6 +45,12 @@ class Watchdog:
             time.sleep(10)  # Check every 10 seconds
             
             try:
+                # SAFETY: Skip watchdog checks during startup grace period
+                time_since_start = time.time() - self.start_time
+                if time_since_start < self.startup_grace_period:
+                    print(f"[WATCHDOG] Startup grace period: {int(self.startup_grace_period - time_since_start)}s remaining")
+                    continue
+                
                 with self._lock:
                     elapsed = time.time() - self.last_heartbeat
                 

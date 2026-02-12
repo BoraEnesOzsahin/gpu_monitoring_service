@@ -83,16 +83,13 @@ def save_secrets(node_id, api_token):
 def save_pending_node_id(node_id):
     """
     Saves node_id received during PENDING state (no api_token yet).
+    
+    SAFETY: Does NOT save to disk to prevent infinite restart loop.
+    The load_secrets() function rejects null tokens, causing immediate restart.
+    Instead, we just log the pending node_id and continue waiting.
     """
-    data = {
-        "node_id": node_id,
-        "api_token": None
-    }
-
-    with open(SECRETS_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
-
-    print(f"PENDING: node_id saved to {SECRETS_FILE}")
+    print(f"PENDING: node_id '{node_id}' received (not saved to disk yet)")
+    print("Waiting for admin approval before saving credentials...")
 
 
 

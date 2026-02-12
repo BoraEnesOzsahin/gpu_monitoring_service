@@ -112,10 +112,6 @@ def register_node():
         except requests.exceptions.RequestException as e:
             print(f"NETWORK ERROR: {e}. Retrying in 30s...")
             time.sleep(30)
-        
-        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
-        # This sleep is OUTSIDE the try/except to always execute
-        time.sleep(1)
 
 
 
@@ -244,7 +240,13 @@ def main():
     
     watchdog.init_watchdog(watchdog_timeout)
     
+    # SAFETY: Feed watchdog immediately to prevent timeout during startup
+    watchdog.feed_watchdog()
+    
     while True:
+        # SAFETY: Feed watchdog at start of each loop iteration
+        watchdog.feed_watchdog()
+        
         # Check if we are already registered
         secrets = config_manager.load_secrets()
         
@@ -260,9 +262,10 @@ def main():
             initial_config = register_node()
             start_heartbeat_loop(initial_config)
         
-        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
-        # This sleep is OUTSIDE any try/except to always execute
-        time.sleep(5)
+        # SAFETY: Prevents rapid restart loop if service exits
+        # Increased from 5s to 30s to prevent restart hammering
+        print("Service loop restarting. Waiting 30s before retry...")
+        time.sleep(30)
 
 if __name__ == "__main__":
     main()
