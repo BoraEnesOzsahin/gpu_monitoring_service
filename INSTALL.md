@@ -270,8 +270,45 @@ When the watchdog triggers, you'll see log entries like:
 [WATCHDOG] ALERT! No heartbeat for 125s. Restarting...
 [WATCHDOG] Initiating restart...
 --- RECKON GPU CLIENT STARTED ---
+[WATCHDOG] Previous restart events detected:
+  [2026-02-12 07:30:15] Watchdog restart triggered - detected infinite loop or frozen process (no heartbeat for 125s)
 [WATCHDOG] Started with 120s timeout
 ```
+
+### Restart Event Tracking
+
+The service now maintains a persistent log of all watchdog-triggered restarts. This allows you to see when infinite loops or frozen processes were detected, even after the service has restarted.
+
+**Features:**
+- All restart events are logged to `restart_events.log` (configurable via `RESTART_LOG_FILE` in `.env`)
+- Each event includes a timestamp and the elapsed time without a heartbeat
+- Restart history is displayed on every service startup
+- The log survives process restarts and system reboots
+
+**Viewing Restart History:**
+
+Check the restart events log directly:
+```bash
+cat restart_events.log
+```
+
+Or view it through systemd logs at service startup:
+```bash
+sudo journalctl -u reckon-client -b | grep "WATCHDOG"
+```
+
+Example restart event log:
+```
+[2026-02-12 07:30:15] Watchdog restart triggered - detected infinite loop or frozen process (no heartbeat for 125s)
+[2026-02-12 08:15:42] Watchdog restart triggered - detected infinite loop or frozen process (no heartbeat for 130s)
+[2026-02-12 09:42:18] Watchdog restart triggered - detected infinite loop or frozen process (no heartbeat for 145s)
+```
+
+**Benefits:**
+- Track service reliability over time
+- Identify patterns in service hangs or freezes
+- Debug issues that cause the service to become unresponsive
+- See terminated infinite loops even after they've been restarted
 
 ## Troubleshooting
 
