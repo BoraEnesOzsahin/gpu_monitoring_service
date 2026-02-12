@@ -94,8 +94,8 @@ def save_pending_node_id(node_id):
     # Redact node_id for security
     # - For None: show "None"
     # - For empty string: show "(empty)"
-    # - For short IDs (<=NODE_ID_REDACTION_LENGTH chars): show "***"
-    # - For longer IDs: show first NODE_ID_REDACTION_LENGTH chars + "..."
+    # - For IDs > NODE_ID_REDACTION_LENGTH chars: show first NODE_ID_REDACTION_LENGTH chars + "..."
+    # - For shorter IDs: show "***" (to avoid revealing full ID)
     if node_id is None:
         redacted_id = "None"
     elif node_id == "":
@@ -103,6 +103,7 @@ def save_pending_node_id(node_id):
     elif len(node_id) > NODE_ID_REDACTION_LENGTH:
         redacted_id = f"{node_id[:NODE_ID_REDACTION_LENGTH]}..."
     else:
+        # ID is NODE_ID_REDACTION_LENGTH chars or shorter - fully redact
         redacted_id = "***"
     
     print(f"PENDING: node_id '{redacted_id}' received (not saved to disk yet)")

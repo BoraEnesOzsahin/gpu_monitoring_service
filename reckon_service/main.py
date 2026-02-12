@@ -56,11 +56,9 @@ def register_node():
     """
     print("\n[STATE] INITIALIZING...")
     
-    hardware_id = config_manager.get_hardware_id()
     inventory = gpu_driver.get_gpu_inventory()
     
     payload = {
-        "hardware_id": hardware_id,
         "model": "RECKON_RIG_GEN1",
         "fw_version": "1.0.0",
         "capabilities": {
