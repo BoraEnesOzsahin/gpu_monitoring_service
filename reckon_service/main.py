@@ -17,6 +17,7 @@ Reference: Protocol Doc Section 2 and 3
 # --- CONSTANTS ---
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
+MAIN_LOOP_RESTART_DELAY_SECONDS = 30  # Delay before restarting main loop
 
 def apply_power_limit(target_total_watts, gpu_count):
     """
@@ -55,11 +56,9 @@ def register_node():
     """
     print("\n[STATE] INITIALIZING...")
     
-    hardware_id = config_manager.get_hardware_id()
     inventory = gpu_driver.get_gpu_inventory()
     
     payload = {
-        "hardware_id": hardware_id,
         "model": "RECKON_RIG_GEN1",
         "fw_version": "1.0.0",
         "capabilities": {
@@ -112,10 +111,6 @@ def register_node():
         except requests.exceptions.RequestException as e:
             print(f"NETWORK ERROR: {e}. Retrying in 30s...")
             time.sleep(30)
-        
-        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
-        # This sleep is OUTSIDE the try/except to always execute
-        time.sleep(1)
 
 
 
@@ -244,7 +239,13 @@ def main():
     
     watchdog.init_watchdog(watchdog_timeout)
     
+    # SAFETY: Feed watchdog immediately to prevent timeout during startup
+    watchdog.feed_watchdog()
+    
     while True:
+        # SAFETY: Feed watchdog at start of each loop iteration
+        watchdog.feed_watchdog()
+        
         # Check if we are already registered
         secrets = config_manager.load_secrets()
         
@@ -260,9 +261,10 @@ def main():
             initial_config = register_node()
             start_heartbeat_loop(initial_config)
         
-        # SAFETY: Prevents CPU burn if loop restarts unexpectedly
-        # This sleep is OUTSIDE any try/except to always execute
-        time.sleep(5)
+        # SAFETY: Prevents rapid restart loop if service exits
+        # Increased from 5s to 30s to prevent restart hammering
+        print(f"Service loop restarting. Waiting {MAIN_LOOP_RESTART_DELAY_SECONDS}s before retry...")
+        time.sleep(MAIN_LOOP_RESTART_DELAY_SECONDS)
 
 if __name__ == "__main__":
     main()
