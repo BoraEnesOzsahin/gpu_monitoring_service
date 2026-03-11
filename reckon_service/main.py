@@ -168,11 +168,10 @@ def start_heartbeat_loop(initial_config):
             if response.status_code == 200:
                 data = response.json()
                 watchdog.feed_watchdog()
-                if data.get("command") == "adjust_power":
-                    target_w = data.get("setpoint_power_w", 1500)
-                    print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
-                    print("WARNING: Power control is disabled on this build (requires rocm-smi, not available on HiveOS)")
-                # Burada interval değiştirilmesin!
+                # Power control is disabled until apply_power_limit is re-enabled.
+                # if data.get("command") == "adjust_power":
+                #     target_w = data.get("setpoint_power_w", 1500)
+                #     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
 
             elif response.status_code == 401:
                 print("UNAUTHORIZED: Token revoked. Deleting secrets and restarting.")
