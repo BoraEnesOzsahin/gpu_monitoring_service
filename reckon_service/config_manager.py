@@ -1,14 +1,12 @@
-
-import json
-import os
-import uuid
-from dotenv import load_dotenv
-
 """
 RECKON Client - Configuration & State Manager
 Purpose: Handles persistent storage (tokens), hardware ID generation, and global settings.
 Reference: Protocol Doc Section 4.1 (Initialization)
 """
+import json
+import os
+import uuid
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv(dotenv_path='/home/user/scripts/.env')

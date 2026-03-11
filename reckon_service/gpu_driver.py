@@ -1,17 +1,17 @@
-import subprocess
-import json
-import re
-import requests
 """
 RECKON GPU Rig - Hardware Interface
 Purpose: Interface with the hardware to collect GPU inventory and telemetry data.
 """
+import subprocess
+import json
+import re
+import requests
 
 # --- COMMAND TIMEOUT CONFIGURATION ---
 # rocm-smi can hang indefinitely, causing system lockup
 # These timeouts prevent infinite process accumulation
 COMMAND_TIMEOUT_SECONDS = 30  # Default timeout for general commands
-ROCM_SMI_TIMEOUT_SECONDS = 15  # Shorter timeout for rocm-smi (known to hang)
+AMD_INFO_TIMEOUT_SECONDS = 15  # Shorter timeout for amd-info (known to hang)
 
 # --- ETC (ETCHASH) REFERANS TABLOSU (MH/s) ---
 HASHRATE_LOOKUP = {
@@ -38,16 +38,16 @@ def run_command(command, timeout=None):
     Returns:
         Command output as string, or None on error/timeout
     """
-    # Use rocm-smi specific timeout for rocm-smi commands
-    # Check if rocm-smi appears as a distinct command (word boundary check)
+    # Use amd-info specific timeout for amd-info commands
+    # Check if amd-info appears as a distinct command (word boundary check)
     if timeout is None:
-        is_amd-info = False
+        is_amd_info = False
         if isinstance(command, str):
-            # Match rocm-smi as a complete word/command name using regex
-            # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
-            is_amd-info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
-        if is_amd-info:
-            timeout = ROCM_SMI_TIMEOUT_SECONDS
+            # Match amd-info as a complete word/command name using regex
+            # This handles: "amd-info", "amd-info --args", "/usr/bin/amd-info"
+            is_amd_info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
+        if is_amd_info:
+            timeout = AMD_INFO_TIMEOUT_SECONDS
         else:
             timeout = COMMAND_TIMEOUT_SECONDS
     
@@ -79,9 +79,6 @@ def estimate_hashrate(gpu_name):
         if key.lower() in gpu_name.lower():
             return value
             
-    if "navi 10" in gpu_name.lower():
-        return 50.0
-        
     return 0.0
 
 def get_gpu_inventory():
@@ -142,26 +139,25 @@ def safe_float(val):
 
 def get_gpu_telemetry():
     try:
-	response = response.get("http://127.0.0.1:44444/summary", timeouts =5)
-	data = response.json()
+        response = requests.get("http://127.0.0.1:44444/summary", timeout=5)
+        data = response.json()
 
-	telemetry = []
+        telemetry = []
 
-
-	for gpu in data.get("Session", {}).get("Workers", []):
-	    gpu_index = gpu.get("Index")
-	    speed = gpu.get("Megahashes", 0)
+        for gpu in data.get("Session", {}).get("Workers", []):
+            gpu_index = gpu.get("Index")
+            speed = gpu.get("Megahashes", 0)
             power = gpu.get("Power", 0)
             temp = gpu.get("Core_Temp", 0)
 
-	    telemetry.append({
+            telemetry.append({
                 "gpu_id": f"gpu_{gpu_index}",
                 "load_pct": 100.0, # Madencilikte her zaman 100 kabul edebiliriz
                 "temp_c": temp,
                 "power_draw_w": power,
                 "current_performance": {"value": speed, "unit": "MH/s"}
             })
-            
+
         return telemetry
 
     except Exception as e:

@@ -1,3 +1,8 @@
+"""
+RECKON Client - Main Service
+Purpose: Implements the Client State Machine (Initializing -> Running).
+Reference: Protocol Doc Section 2 and 3 
+"""
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 import time
@@ -7,12 +12,6 @@ import os
 import gpu_driver
 import config_manager
 import watchdog
-
-"""
-RECKON Client - Main Service
-Purpose: Implements the Client State Machine (Initializing -> Running).
-Reference: Protocol Doc Section 2 and 3 
-"""
 
 # --- CONSTANTS ---
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
@@ -116,37 +115,6 @@ def register_node():
 
 
 
-def approve_node(node_id):
-    """
-    Approves a pending node registration using the EMS API.
-    Sends an approval request to the server.
-    """
-    import requests
-
-    url = f"{config_manager.EMS_API_URL}/api/v1/nodes/{node_id}/approve"
-
-    headers = {
-        "Authorization": f"Bearer {api_token}"
-    }
-
-    print(f"\n[ADMIN] Approving node {node_id}...")
-
-    try:
-        response = requests.post(url, timeout=10)
-        if response.status_code == 200:
-            print("SUCCESS: Node approved successfully!")
-            print("Response:", response.json())
-        elif response.status_code == 404:
-            print("ERROR: Node not found.")
-        else:
-            print(f"ERROR: Server returned {response.status_code}.")
-            print("Response:", response.text)
-    except requests.exceptions.RequestException as e:
-        print(f"NETWORK ERROR: {e}.")
-
-
-
-
 
 def start_heartbeat_loop(initial_config):
     """
@@ -200,11 +168,10 @@ def start_heartbeat_loop(initial_config):
             if response.status_code == 200:
                 data = response.json()
                 watchdog.feed_watchdog()
-                if data.get("command") == "adjust_power":
-                    target_w = data.get("setpoint_power_w", 1500)
-                    print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
-                    apply_power_limit(target_w, len(telemetry))
-                # Burada interval değiştirilmesin!
+                # Power control is disabled until apply_power_limit is re-enabled.
+                # if data.get("command") == "adjust_power":
+                #     target_w = data.get("setpoint_power_w", 1500)
+                #     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
 
             elif response.status_code == 401:
                 print("UNAUTHORIZED: Token revoked. Deleting secrets and restarting.")
