@@ -41,12 +41,12 @@ def run_command(command, timeout=None):
     # Use rocm-smi specific timeout for rocm-smi commands
     # Check if rocm-smi appears as a distinct command (word boundary check)
     if timeout is None:
-        is_amd-info = False
+        is_amd_info = False
         if isinstance(command, str):
             # Match rocm-smi as a complete word/command name using regex
             # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
-            is_amd-info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
-        if is_amd-info:
+            is_amd_info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
+        if is_amd_info:
             timeout = ROCM_SMI_TIMEOUT_SECONDS
         else:
             timeout = COMMAND_TIMEOUT_SECONDS
@@ -142,26 +142,25 @@ def safe_float(val):
 
 def get_gpu_telemetry():
     try:
-	response = response.get("http://127.0.0.1:44444/summary", timeouts =5)
-	data = response.json()
+        response = requests.get("http://127.0.0.1:44444/summary", timeout=5)
+        data = response.json()
 
-	telemetry = []
+        telemetry = []
 
-
-	for gpu in data.get("Session", {}).get("Workers", []):
-	    gpu_index = gpu.get("Index")
-	    speed = gpu.get("Megahashes", 0)
+        for gpu in data.get("Session", {}).get("Workers", []):
+            gpu_index = gpu.get("Index")
+            speed = gpu.get("Megahashes", 0)
             power = gpu.get("Power", 0)
             temp = gpu.get("Core_Temp", 0)
 
-	    telemetry.append({
+            telemetry.append({
                 "gpu_id": f"gpu_{gpu_index}",
                 "load_pct": 100.0, # Madencilikte her zaman 100 kabul edebiliriz
                 "temp_c": temp,
                 "power_draw_w": power,
                 "current_performance": {"value": speed, "unit": "MH/s"}
             })
-            
+
         return telemetry
 
     except Exception as e:
