@@ -36,6 +36,18 @@ def get_hardware_id():
                         for ele in range(0, 8*6, 8)][::-1]))
     return mac_hex
 
+def ensure_secrets_file_exists():
+    """
+    Creates an empty secrets file if it does not already exist.
+    Called at startup so the file is always present on disk.
+    File is created with owner-only read/write permissions (0o600).
+    """
+    if not os.path.exists(SECRETS_FILE):
+        fd = os.open(SECRETS_FILE, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as f:
+            json.dump({}, f, indent=4)
+        print("Initialized: Created empty secrets file.")
+
 def load_secrets():
     """
     Tries to load the saved API Token and Node ID from disk.
