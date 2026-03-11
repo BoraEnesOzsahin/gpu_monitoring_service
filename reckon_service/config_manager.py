@@ -8,8 +8,9 @@ import os
 import uuid
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv(dotenv_path='/home/user/scripts/.env')
+# Load environment variables from .env file (search from project root)
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(dotenv_path=os.path.join(_BASE_DIR, '.env'))
 
 # --- CONFIGURATION ---
 EMS_API_URL = os.getenv("EMS_API_URL", "http://127.0.0.1:8000")
