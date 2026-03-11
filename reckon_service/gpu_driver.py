@@ -1,6 +1,7 @@
 import subprocess
 import json
 import re
+import requests
 """
 RECKON GPU Rig - Hardware Interface
 Purpose: Interface with the hardware to collect GPU inventory and telemetry data.
@@ -40,12 +41,12 @@ def run_command(command, timeout=None):
     # Use rocm-smi specific timeout for rocm-smi commands
     # Check if rocm-smi appears as a distinct command (word boundary check)
     if timeout is None:
-        is_rocm_smi = False
+        is_amd-info = False
         if isinstance(command, str):
             # Match rocm-smi as a complete word/command name using regex
             # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
-            is_rocm_smi = bool(re.search(r'(?:^|/| )rocm-smi(?:$| )', command))
-        if is_rocm_smi:
+            is_amd-info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
+        if is_amd-info:
             timeout = ROCM_SMI_TIMEOUT_SECONDS
         else:
             timeout = COMMAND_TIMEOUT_SECONDS
@@ -87,7 +88,7 @@ def get_gpu_inventory():
     """
     Initialize fazı için donanım envanterini hazırlar.
     """
-    output = run_command("lspci | grep -i vga")
+    output = run_command("amd-info")
     inventory = []
     
     if not output:
@@ -120,57 +121,6 @@ def get_gpu_inventory():
 
 
 
-#def get_gpu_telemetry():
-#    """
-#    Reads live GPU telemetry (temperature, power, load).
-#    Returns a list of GPU telemetry dictionaries.
-#    Ignores empty or non-JSON output from rocm-smi.
-#    """
-#    def safe_float(val):
-#        try:
-#            if val is None or str(val).strip().lower() in ("n/a", "na", "", "undefined"):
-#                return 0.0
-#            return float(val)
-#        except Exception:
-#            return 0.0
-#
-#    cmd = "rocm-smi --showtemp --showuse --showpower --json"
-#    json_output = run_command(cmd)
-#    telemetry = []
-#
-#    # If output is empty or not a JSON object, skip processing
-#    if not json_output or not json_output.strip().startswith("{"):
-#        print("WARNING: rocm-smi returned empty or non-JSON output!")
-#        print(f"rocm-smi output:\n{json_output}")
-#        return []
-#
-#    try:
-#        data = json.loads(json_output)
-#        for key in sorted(data.keys()):
-#            gpu_data = data[key]
-#            gpu_index = key.replace('card', '')
-#            temp_c = safe_float(gpu_data.get("Temperature (Sensor edge) (C)"))
-#            power_w = safe_float(gpu_data.get("Average Graphics Package Power (W)"))
-#            load_pct = safe_float(gpu_data.get("GPU use (%)"))
-#
-#            telemetry_item = {
-#                "gpu_id": f"gpu_{gpu_index}",
-#                "load_pct": load_pct,
-#                "temp_c": temp_c,
-#                "power_draw_w": power_w,
-#                "current_performance": {
-#                    "value": 0,
-#                    "unit": "MH/s"
-#                }
-#            }
-#            telemetry.append(telemetry_item)
-#    except Exception as e:
-#        print(f"JSON Decode Error in get_gpu_telemetry: {e}")
-#        print(f"rocm-smi output:\n{json_output}")
-#        return []
-#
-#    return telemetry
-
 
 
 
@@ -191,48 +141,35 @@ def safe_float(val):
 
 
 def get_gpu_telemetry():
-    cmd = "rocm-smi --showtemp --showuse --showpower --json"
-    raw_output = run_command(cmd)
-    telemetry = []
-
-    if not raw_output:
-        return []
-
     try:
-        # 1. TEMİZLİK: Sadece '{' ile başlayıp '}' ile biten kısmı al (Warning yazılarını siler)
-        start_idx = raw_output.find('{')
-        end_idx = raw_output.rfind('}')
-        if start_idx == -1 or end_idx == -1:
-            return []
-        
-        json_clean = raw_output[start_idx : end_idx + 1]
-        data = json.loads(json_clean)
+	response = response.get("http://127.0.0.1:44444/summary", timeouts =5)
+	data = response.json()
 
-        # 2. VERİ ÇEKME
-        for key in sorted(data.keys()):
-            if not key.startswith('card'):
-                continue
-            
-            gpu_data = data[key]
-            gpu_index = key.replace('card', '')
-            
-            # .get(anahtar, varsayılan_değer) kullanarak eksik verilerde çökmesini önlüyoruz
-            temp = safe_float(gpu_data.get("Temperature (Sensor edge) (C)", 0))
-            power = safe_float(gpu_data.get("Average Graphics Package Power (W)", 0))
-            load = safe_float(gpu_data.get("GPU use (%)", 0))
+	telemetry = []
 
-            telemetry.append({
+
+	for gpu in data.get("Session", {}).get("Workers", []):
+	    gpu_index = gpu.get("Index")
+	    speed = gpu.get("Megahashes", 0)
+            power = gpu.get("Power", 0)
+            temp = gpu.get("Core_Temp", 0)
+
+	    telemetry.append({
                 "gpu_id": f"gpu_{gpu_index}",
-                "load_pct": load,
+                "load_pct": 100.0, # Madencilikte her zaman 100 kabul edebiliriz
                 "temp_c": temp,
                 "power_draw_w": power,
-                "current_performance": {"value": 0, "unit": "MH/s"}
+                "current_performance": {"value": speed, "unit": "MH/s"}
             })
+            
+        return telemetry
 
     except Exception as e:
-        print(f"Kritik Hata: {e}") # Heartbeat'in devam etmesi için programı durdurmuyoruz
-    
-    return telemetry
+        print(f"Veri çekilemedi: {e}")
+        return []
+
+
+
 
 
 

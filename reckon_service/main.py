@@ -18,7 +18,7 @@ Reference: Protocol Doc Section 2 and 3
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
 RETRY_DELAY = config_manager.RETRY_DELAY
 MAIN_LOOP_RESTART_DELAY_SECONDS = 30  # Delay before restarting main loop
-
+'''
 def apply_power_limit(target_total_watts, gpu_count):
     """
     Distributes power but clamps it to hardware limits.
@@ -48,6 +48,8 @@ def apply_power_limit(target_total_watts, gpu_count):
     # Apply command with safe limit
     cmd = f"rocm-smi --setpowerlimit {safe_limit} -d all"
     result = gpu_driver.run_command(cmd)
+'''
+
 
 def register_node():
     """

@@ -11,7 +11,7 @@ Reference: Protocol Doc Section 4.1 (Initialization)
 """
 
 # Load environment variables from .env file
-load_dotenv(dotenv_path='/home/radmin/scripts/.env')
+load_dotenv(dotenv_path='/home/user/scripts/.env')
 
 # --- CONFIGURATION ---
 EMS_API_URL = os.getenv("EMS_API_URL", "http://127.0.0.1:8000")
