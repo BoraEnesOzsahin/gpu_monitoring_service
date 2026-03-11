@@ -115,37 +115,6 @@ def register_node():
 
 
 
-def approve_node(node_id, api_token):
-    """
-    Approves a pending node registration using the EMS API.
-    Sends an approval request to the server.
-    """
-    import requests
-
-    url = f"{config_manager.EMS_API_URL}/api/v1/nodes/{node_id}/approve"
-
-    headers = {
-        "Authorization": f"Bearer {api_token}"
-    }
-
-    print(f"\n[ADMIN] Approving node {node_id}...")
-
-    try:
-        response = requests.post(url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            print("SUCCESS: Node approved successfully!")
-            print("Response:", response.json())
-        elif response.status_code == 404:
-            print("ERROR: Node not found.")
-        else:
-            print(f"ERROR: Server returned {response.status_code}.")
-            print("Response:", response.text)
-    except requests.exceptions.RequestException as e:
-        print(f"NETWORK ERROR: {e}.")
-
-
-
-
 
 def start_heartbeat_loop(initial_config):
     """
@@ -202,7 +171,7 @@ def start_heartbeat_loop(initial_config):
                 if data.get("command") == "adjust_power":
                     target_w = data.get("setpoint_power_w", 1500)
                     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
-                    # apply_power_limit is disabled (requires rocm-smi, not available on HiveOS)
+                    print("WARNING: Power control is disabled on this build (requires rocm-smi, not available on HiveOS)")
                 # Burada interval değiştirilmesin!
 
             elif response.status_code == 401:

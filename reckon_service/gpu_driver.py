@@ -11,7 +11,7 @@ import requests
 # rocm-smi can hang indefinitely, causing system lockup
 # These timeouts prevent infinite process accumulation
 COMMAND_TIMEOUT_SECONDS = 30  # Default timeout for general commands
-ROCM_SMI_TIMEOUT_SECONDS = 15  # Shorter timeout for rocm-smi (known to hang)
+AMD_INFO_TIMEOUT_SECONDS = 15  # Shorter timeout for amd-info (known to hang)
 
 # --- ETC (ETCHASH) REFERANS TABLOSU (MH/s) ---
 HASHRATE_LOOKUP = {
@@ -38,16 +38,16 @@ def run_command(command, timeout=None):
     Returns:
         Command output as string, or None on error/timeout
     """
-    # Use rocm-smi specific timeout for rocm-smi commands
-    # Check if rocm-smi appears as a distinct command (word boundary check)
+    # Use amd-info specific timeout for amd-info commands
+    # Check if amd-info appears as a distinct command (word boundary check)
     if timeout is None:
         is_amd_info = False
         if isinstance(command, str):
-            # Match rocm-smi as a complete word/command name using regex
-            # This handles: "rocm-smi", "rocm-smi --args", "/usr/bin/rocm-smi"
+            # Match amd-info as a complete word/command name using regex
+            # This handles: "amd-info", "amd-info --args", "/usr/bin/amd-info"
             is_amd_info = bool(re.search(r'(?:^|/| )amd-info(?:$| )', command))
         if is_amd_info:
-            timeout = ROCM_SMI_TIMEOUT_SECONDS
+            timeout = AMD_INFO_TIMEOUT_SECONDS
         else:
             timeout = COMMAND_TIMEOUT_SECONDS
     
