@@ -1,9 +1,3 @@
-# Environment variables
-.env
-
-# Keep the example file
-!.env.example
-
 # Secrets
 secrets.json
 
