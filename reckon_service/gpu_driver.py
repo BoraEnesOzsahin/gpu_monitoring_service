@@ -1,11 +1,11 @@
-import subprocess
-import json
-import re
-import requests
 """
 RECKON GPU Rig - Hardware Interface
 Purpose: Interface with the hardware to collect GPU inventory and telemetry data.
 """
+import subprocess
+import json
+import re
+import requests
 
 # --- COMMAND TIMEOUT CONFIGURATION ---
 # rocm-smi can hang indefinitely, causing system lockup
@@ -79,9 +79,6 @@ def estimate_hashrate(gpu_name):
         if key.lower() in gpu_name.lower():
             return value
             
-    if "navi 10" in gpu_name.lower():
-        return 50.0
-        
     return 0.0
 
 def get_gpu_inventory():

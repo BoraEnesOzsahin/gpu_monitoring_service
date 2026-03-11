@@ -1,3 +1,8 @@
+"""
+RECKON Client - Main Service
+Purpose: Implements the Client State Machine (Initializing -> Running).
+Reference: Protocol Doc Section 2 and 3 
+"""
 import sys
 sys.stdout.reconfigure(line_buffering=True)
 import time
@@ -7,12 +12,6 @@ import os
 import gpu_driver
 import config_manager
 import watchdog
-
-"""
-RECKON Client - Main Service
-Purpose: Implements the Client State Machine (Initializing -> Running).
-Reference: Protocol Doc Section 2 and 3 
-"""
 
 # --- CONSTANTS ---
 DEFAULT_HEARTBEAT_INTERVAL = config_manager.DEFAULT_HEARTBEAT_INTERVAL
@@ -116,7 +115,7 @@ def register_node():
 
 
 
-def approve_node(node_id):
+def approve_node(node_id, api_token):
     """
     Approves a pending node registration using the EMS API.
     Sends an approval request to the server.
@@ -132,7 +131,7 @@ def approve_node(node_id):
     print(f"\n[ADMIN] Approving node {node_id}...")
 
     try:
-        response = requests.post(url, timeout=10)
+        response = requests.post(url, headers=headers, timeout=10)
         if response.status_code == 200:
             print("SUCCESS: Node approved successfully!")
             print("Response:", response.json())
@@ -203,7 +202,7 @@ def start_heartbeat_loop(initial_config):
                 if data.get("command") == "adjust_power":
                     target_w = data.get("setpoint_power_w", 1500)
                     print(f"COMMAND RECEIVED: Adjust Power to {target_w}W")
-                    apply_power_limit(target_w, len(telemetry))
+                    # apply_power_limit is disabled (requires rocm-smi, not available on HiveOS)
                 # Burada interval değiştirilmesin!
 
             elif response.status_code == 401:

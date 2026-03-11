@@ -1,12 +1,11 @@
-import threading
-import time
-import os
-import sys
-
 """
 RECKON Client - Internal Watchdog
 Purpose: Monitors the main service and restarts if unresponsive.
 """
+import threading
+import time
+import os
+import sys
 
 class Watchdog:
     # SAFETY: Configuration constants
