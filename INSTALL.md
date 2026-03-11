@@ -312,6 +312,27 @@ If the service continuously restarts:
    ```
 3. Ensure firewall allows outbound connections
 
+### "Max retries exceeded with url" Error
+
+This error occurs when the `requests` library cannot find a transport adapter for the URL, most commonly because `EMS_API_URL` is missing an `http://` or `https://` scheme.
+
+**Wrong:**
+```
+EMS_API_URL=192.168.1.100:8000
+EMS_API_URL=your-ems-server:8000
+```
+
+**Correct:**
+```
+EMS_API_URL=http://192.168.1.100:8000
+EMS_API_URL=http://your-ems-server:8000
+```
+
+The service will automatically prepend `http://` and log a warning if the scheme is missing, but it is best practice to set the full URL explicitly. Other causes include:
+- EMS server is down or unreachable
+- Incorrect hostname or IP address
+- Firewall blocking the connection
+
 ### Watchdog Triggering Too Often
 
 If the internal watchdog restarts too frequently:

@@ -13,7 +13,19 @@ _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(dotenv_path=os.path.join(_BASE_DIR, '.env'))
 
 # --- CONFIGURATION ---
-EMS_API_URL = os.getenv("EMS_API_URL", "http://127.0.0.1:8000")
+def _normalize_url(url):
+    """
+    Ensures the URL has a proper HTTP/HTTPS scheme.
+    If the URL is missing a scheme (e.g. '192.168.1.1:8000'), prepends 'http://'.
+    A missing scheme causes requests to raise 'Max retries exceeded with url'
+    because no transport adapter can be found for the bare host:port string.
+    """
+    if url and not url.startswith(("http://", "https://")):
+        print(f"Warning: EMS_API_URL '{url}' has no scheme. Prepending 'http://'.")
+        url = f"http://{url}"
+    return url
+
+EMS_API_URL = _normalize_url(os.getenv("EMS_API_URL", "http://127.0.0.1:8000"))
 
 # File to store the API token and Node ID securely
 SECRETS_FILE = os.getenv("SECRETS_FILE", "secrets.json")
