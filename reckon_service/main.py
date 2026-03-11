@@ -199,6 +199,9 @@ def main():
     """
     print("--- RECKON GPU CLIENT STARTED ---")
     
+    # Ensure secrets file exists on disk (creates empty file if missing)
+    config_manager.ensure_secrets_file_exists()
+
     # Initialize watchdog
     try:
         watchdog_timeout = int(os.getenv("WATCHDOG_TIMEOUT", "120"))
